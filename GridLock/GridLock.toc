@@ -1,10 +1,10 @@
 ## Interface: 30300
-## Title: ZenAlign
+## Title: GridLock
 ## Notes: Move, align, and snap UI elements to a grid with precision.
 ## Author: Zendevve
-## Version: 0.0.5
-## SavedVariables: ZenAlignDB
-## SavedVariablesPerCharacter: ZenAlignCharDB
+## Version: 1.0.0
+## SavedVariables: GridLockDB
+## SavedVariablesPerCharacter: GridLockCharDB
 
 # Localization
 Localization\enUS.lua
