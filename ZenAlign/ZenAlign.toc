@@ -12,10 +12,12 @@ Localization\enUS.lua
 # Core
 Core\Utils.lua
 Core\Config.lua
+Core\Init.lua
 Core\Core.lua
 
 # Data
 Data\Frames.lua
+Data\Position.lua
 
 # Modules
 Modules\Grid.lua
@@ -23,7 +25,13 @@ Modules\Snap.lua
 Modules\Mover.lua
 Modules\Position.lua
 Modules\Visibility.lua
+Modules\Picker.lua
+Modules\Keybind.lua
+Modules\FadeManager.lua
+Modules\BarLayout.lua
+
 
 # UI
-UI\Browser.lua
-UI\Editor.lua
+UI\HUD.lua
+UI\Dashboard.lua
+

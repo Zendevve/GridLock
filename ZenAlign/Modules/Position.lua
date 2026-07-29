@@ -42,14 +42,27 @@ function Position:SavePosition(frameName, frame)
     end
     if not frame then return false end
 
-    -- Store original position if not already stored
+    -- Store original position, scale, and alpha if not already stored
     if not self.originalPositions[frameName] then
-        self.originalPositions[frameName] = self:SerializeAllPoints(frame)
+        local origAlpha = frame:GetAlpha()
+        if not origAlpha or origAlpha == 0 then origAlpha = 1.0 end
+        self.originalPositions[frameName] = {
+            points = self:SerializeAllPoints(frame),
+            scale = frame:GetScale() or 1.0,
+            alpha = origAlpha
+        }
     end
 
     -- Get current position
     local posData = ZenAlign.Utils.SerializePoint(frame, 1)
     if not posData then return false end
+
+    -- Retain existing scale and alpha if present in DB
+    local existing = ZenAlign:GetFramePosition(frameName)
+    if existing then
+        posData.scale = existing.scale
+        posData.alpha = existing.alpha
+    end
 
     -- Save to database
     ZenAlign:SaveFramePosition(frameName, posData)
@@ -103,6 +116,8 @@ function Position:EnableManagedPosition(frameName)
             UIPARENT_MANAGED_FRAME_POSITIONS[frameName] = self.managedFrameBackup[frameName]
         end
         self.managedFrameBackup[frameName] = nil
+    elseif UIPARENT_MANAGED_FRAME_POSITIONS and frameName == "MainMenuBar" then
+        UIPARENT_MANAGED_FRAME_POSITIONS[frameName] = { baseY = 0 }
     end
 
     if self.managedFrameBackup[frameName .. "_panel"] then
@@ -131,11 +146,34 @@ function Position:ApplyPosition(frameName, posData)
 
     -- Store original if not stored
     if not self.originalPositions[frameName] then
-        self.originalPositions[frameName] = self:SerializeAllPoints(frame)
+        local origAlpha = frame:GetAlpha()
+        if not origAlpha or origAlpha == 0 then origAlpha = 1.0 end
+        self.originalPositions[frameName] = {
+            points = self:SerializeAllPoints(frame),
+            scale = frame:GetScale() or 1.0,
+            alpha = origAlpha
+        }
     end
 
     -- Disable managed positioning BEFORE applying
     self:DisableManagedPosition(frameName)
+
+    -- Apply scale if saved
+    if posData.scale and frame.SetScale then
+        frame:SetScale(posData.scale)
+    end
+
+    -- Apply alpha if saved (but NEVER restore alpha=0 unless Visibility has it hidden)
+    if posData.alpha and frame.SetAlpha then
+        local Visibility = ZenAlign:GetModule("Visibility")
+        local isHiddenByUs = Visibility and Visibility:IsHidden(frameName)
+        if posData.alpha > 0 or isHiddenByUs then
+            frame:SetAlpha(posData.alpha)
+        else
+            -- Saved alpha was 0 but frame is not hidden — restore to 1.0
+            frame:SetAlpha(1.0)
+        end
+    end
 
     -- Apply position using original SetPoint (bypass our hook)
     local applyPoint = frame.ZenAlignOriginalSetPoint or frame.SetPoint
@@ -160,6 +198,22 @@ function Position:ApplyAllSavedPositions()
     end
 end
 
+-- Save original position helper
+function Position:SaveOriginalPosition(frameName, frame)
+    if not frame then frame = _G[frameName] end
+    if not frame then return end
+
+    if not self.originalPositions[frameName] then
+        local origAlpha = frame:GetAlpha()
+        if not origAlpha or origAlpha == 0 then origAlpha = 1.0 end
+        self.originalPositions[frameName] = {
+            points = self:SerializeAllPoints(frame),
+            scale = frame:GetScale() or 1.0,
+            alpha = origAlpha
+        }
+    end
+end
+
 -- Reset frame to original position
 function Position:ResetPosition(frameName)
     local frame = _G[frameName]
@@ -171,22 +225,51 @@ function Position:ResetPosition(frameName)
         return false
     end
 
-    -- Unhook the frame first
+    -- Unhook the frame first so SetPoint/ClearAllPoints calls bypass hooks
     self:UnhookFrame(frameName)
 
     -- Re-enable managed positioning
     self:EnableManagedPosition(frameName)
 
-    -- Restore original position if we have it
-    local origPoints = self.originalPositions[frameName]
-    if origPoints and #origPoints > 0 then
-        frame:ClearAllPoints()
-        for _, pointData in ipairs(origPoints) do
-            ZenAlign.Utils.ApplyPoint(frame, pointData)
-        end
+    -- Clear visibility hidden state (so frame becomes visible again)
+    local Visibility = ZenAlign:GetModule("Visibility")
+    if Visibility and Visibility:IsHidden(frameName) then
+        Visibility:ShowFrame(frameName)
     end
 
-    -- Clear original storage and saved position
+    -- Always force alpha and scale back to sane defaults
+    if frame.SetAlpha then
+        frame:SetAlpha(1.0)
+    end
+    if frame.SetScale then
+        frame:SetScale(1.0)
+    end
+    if frame.EnableMouse then
+        frame:EnableMouse(true)
+    end
+
+    -- Clear points before restoring
+    frame:ClearAllPoints()
+
+    -- Restoring position order:
+    -- 1. Stored session original points
+    -- 2. Hardcoded default position catalog
+    -- 3. Standard screen center fallback
+    local origData = self.originalPositions[frameName]
+    local defaultPos = ZenAlign.PositionData and ZenAlign.PositionData:GetDefaultPosition(frameName)
+
+    if origData and origData.points and #origData.points > 0 then
+        for _, pointData in ipairs(origData.points) do
+            ZenAlign.Utils.ApplyPoint(frame, pointData)
+        end
+    elseif defaultPos then
+        local relTo = _G[defaultPos.relativeTo] or UIParent
+        frame:SetPoint(defaultPos.point, relTo, defaultPos.relativePoint, defaultPos.x, defaultPos.y)
+    else
+        frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    end
+
+    -- Clear original storage and saved position from DB
     self.originalPositions[frameName] = nil
     ZenAlign:ClearFramePosition(frameName)
 
@@ -195,7 +278,62 @@ function Position:ResetPosition(frameName)
         UIParent_ManageFramePositions()
     end
 
+    -- Update Mover overlay position if attached
+    local Mover = ZenAlign:GetModule("Mover")
+    if Mover then
+        local mover = Mover:GetMoverForFrame(frameName)
+        if mover then
+            Mover:UpdateMoverPosition(mover)
+            Mover:UpdateTooltip(mover)
+        end
+    end
+
     return true
+end
+
+-- Reset ALL frames to default positions, scales, alphas, and hidden states
+function Position:ResetAll()
+    -- Collect all frame names to reset
+    local framesToReset = {}
+    if ZenAlign.db and ZenAlign.db.frames then
+        for frameName in pairs(ZenAlign.db.frames) do
+            framesToReset[frameName] = true
+        end
+    end
+    for frameName in pairs(self.originalPositions) do
+        framesToReset[frameName] = true
+    end
+
+    -- Detach all movers first
+    local Mover = ZenAlign:GetModule("Mover")
+    if Mover then
+        Mover:DetachAll()
+    end
+
+    -- Show all hidden frames
+    local Visibility = ZenAlign:GetModule("Visibility")
+    if Visibility then
+        Visibility:ShowAll()
+    end
+
+    -- Reset each recorded frame
+    for frameName in pairs(framesToReset) do
+        self:ResetPosition(frameName)
+    end
+
+    -- Wipe saved databases
+    if ZenAlign.db then
+        if ZenAlign.db.frames then wipe(ZenAlign.db.frames) end
+        if ZenAlign.db.hiddenFrames then wipe(ZenAlign.db.hiddenFrames) end
+    end
+    wipe(self.originalPositions)
+
+    -- Update Blizzard layout engine
+    if UIParent_ManageFramePositions then
+        UIParent_ManageFramePositions()
+    end
+
+    ZenAlign.Utils.Print(ZENALIGN.POSITION_RESET_ALL or "All frame positions, scales, and visibilities have been reset.")
 end
 
 -- Hook frame to prevent external position changes

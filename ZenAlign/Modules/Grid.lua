@@ -68,10 +68,11 @@ function Grid:DrawGrid()
         local line = self:GetOrCreateLine(grid, lineIndex)
 
         local isCenter = math.abs(x - centerX) < size / 2
+        line:SetTexture("Interface\\Buttons\\WHITE8X8")
         if isCenter then
-            line:SetTexture(centerColor.r, centerColor.g, centerColor.b, centerColor.a)
+            line:SetVertexColor(centerColor.r, centerColor.g, centerColor.b, centerColor.a)
         else
-            line:SetTexture(color.r, color.g, color.b, color.a)
+            line:SetVertexColor(color.r, color.g, color.b, color.a)
         end
 
         line:ClearAllPoints()
@@ -88,10 +89,11 @@ function Grid:DrawGrid()
         local line = self:GetOrCreateLine(grid, lineIndex)
 
         local isCenter = math.abs(y - centerY) < size / 2
+        line:SetTexture("Interface\\Buttons\\WHITE8X8")
         if isCenter then
-            line:SetTexture(centerColor.r, centerColor.g, centerColor.b, centerColor.a)
+            line:SetVertexColor(centerColor.r, centerColor.g, centerColor.b, centerColor.a)
         else
-            line:SetTexture(color.r, color.g, color.b, color.a)
+            line:SetVertexColor(color.r, color.g, color.b, color.a)
         end
 
         line:ClearAllPoints()
@@ -163,3 +165,21 @@ function Grid:SetSize(size)
     ZenAlign.db.gridSize = size
     self:Update()
 end
+
+-- Cycle grid size (8 -> 16 -> 32 -> 64 -> 8)
+function Grid:CycleSize()
+    local current = ZenAlign.db and ZenAlign.db.gridSize or 32
+    local nextSize = 32
+    if current == 8 then
+        nextSize = 16
+    elseif current == 16 then
+        nextSize = 32
+    elseif current == 32 then
+        nextSize = 64
+    else
+        nextSize = 8
+    end
+    self:SetSize(nextSize)
+    return nextSize
+end
+

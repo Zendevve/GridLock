@@ -10,7 +10,29 @@ ZenAlign:RegisterModule("Visibility", Visibility)
 Visibility.hiddenFrames = {}
 
 function Visibility:OnInitialize()
-    -- Will apply hidden states from saved data if implemented
+    if ZenAlign.db then
+        if not ZenAlign.db.hiddenFrames then
+            ZenAlign.db.hiddenFrames = {}
+        end
+        self.hiddenFrames = ZenAlign.db.hiddenFrames
+    end
+
+    self:ApplySavedHiddenStates()
+end
+
+-- Apply saved hidden states on login/initialize
+function Visibility:ApplySavedHiddenStates()
+    if not self.hiddenFrames then return end
+
+    for frameName, data in pairs(self.hiddenFrames) do
+        local frame = _G[frameName]
+        if frame and not ZenAlign.Utils.IsProtectedInCombat(frame) then
+            frame:SetAlpha(0)
+            if frame.EnableMouse then
+                frame:EnableMouse(false)
+            end
+        end
+    end
 end
 
 -- Hide a frame
@@ -27,15 +49,17 @@ function Visibility:HideFrame(frameName)
         return false
     end
 
-    -- Store original visibility state
+    -- Store original visibility state if not present
     if not self.hiddenFrames[frameName] then
+        local origAlpha = frame:GetAlpha()
+        if origAlpha == 0 then origAlpha = 1.0 end
         self.hiddenFrames[frameName] = {
             wasShown = frame:IsShown(),
-            alpha = frame:GetAlpha(),
+            alpha = origAlpha,
         }
     end
 
-    -- Hide via alpha and disable mouse (safer than Hide() for some frames)
+    -- Hide via alpha and disable mouse (safer than Hide() for standard frames)
     frame:SetAlpha(0)
     if frame.EnableMouse then
         frame:EnableMouse(false)
@@ -61,18 +85,17 @@ function Visibility:ShowFrame(frameName)
 
     -- Restore original state
     local stored = self.hiddenFrames[frameName]
-    if stored then
-        frame:SetAlpha(stored.alpha or 1)
-        if frame.EnableMouse then
-            frame:EnableMouse(true)
-        end
-        self.hiddenFrames[frameName] = nil
-    else
-        frame:SetAlpha(1)
-        if frame.EnableMouse then
-            frame:EnableMouse(true)
-        end
+    local restoreAlpha = 1.0
+    if type(stored) == "table" and stored.alpha then
+        restoreAlpha = stored.alpha
     end
+
+    frame:SetAlpha(restoreAlpha)
+    if frame.EnableMouse then
+        frame:EnableMouse(true)
+    end
+
+    self.hiddenFrames[frameName] = nil
 
     ZenAlign.Utils.Print(ZENALIGN.FRAME_SHOWN, frameName)
     return true
@@ -94,7 +117,12 @@ end
 
 -- Show all hidden frames
 function Visibility:ShowAll()
+    local keys = {}
     for frameName, _ in pairs(self.hiddenFrames) do
+        table.insert(keys, frameName)
+    end
+    for _, frameName in ipairs(keys) do
         self:ShowFrame(frameName)
     end
+    wipe(self.hiddenFrames)
 end

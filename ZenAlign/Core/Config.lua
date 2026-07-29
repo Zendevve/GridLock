@@ -13,8 +13,10 @@ local defaults = {
     -- Snap settings
     snapEnabled = true,
     snapThreshold = 10,  -- Pixels to trigger snap
+    snapReleaseThreshold = 16, -- Pixels to break snap lock
     snapToEdges = true,
     snapToCenter = true,
+    snapToFrames = true,
 
     -- Mover settings
     moverColor = { r = 0, g = 1, b = 0.6, a = 0.8 },
@@ -25,8 +27,9 @@ local defaults = {
     closeOnEscape = true,
     debug = false,
 
-    -- Frame positions (populated at runtime)
+    -- Frame positions and visibility (populated at runtime)
     frames = {},
+    hiddenFrames = {},
 }
 
 local charDefaults = {
@@ -100,6 +103,46 @@ function ZenAlign:GetSavedFrameNames()
     return names
 end
 
+-- Get frame scale
+function ZenAlign:GetFrameScale(frameName)
+    local pos = self.db.frames[frameName]
+    return pos and pos.scale or nil
+end
+
+-- Save frame scale
+function ZenAlign:SaveFrameScale(frameName, scale)
+    if not self.db.frames[frameName] then
+        local f = _G[frameName]
+        if f then
+            local posData = ZenAlign.Utils.SerializePoint(f, 1) or { point = "CENTER", relativeTo = "UIParent", relativePoint = "CENTER", x = 0, y = 0 }
+            self.db.frames[frameName] = posData
+        else
+            return
+        end
+    end
+    self.db.frames[frameName].scale = scale
+end
+
+-- Get frame alpha
+function ZenAlign:GetFrameAlpha(frameName)
+    local pos = self.db.frames[frameName]
+    return pos and pos.alpha or nil
+end
+
+-- Save frame alpha
+function ZenAlign:SaveFrameAlpha(frameName, alpha)
+    if not self.db.frames[frameName] then
+        local f = _G[frameName]
+        if f then
+            local posData = ZenAlign.Utils.SerializePoint(f, 1) or { point = "CENTER", relativeTo = "UIParent", relativePoint = "CENTER", x = 0, y = 0 }
+            self.db.frames[frameName] = posData
+        else
+            return
+        end
+    end
+    self.db.frames[frameName].alpha = alpha
+end
+
 -- Reset all positions
 function ZenAlign:ResetAllPositions()
     wipe(self.db.frames)
@@ -110,13 +153,15 @@ function ZenAlign:ExportConfig()
     -- Simple serialization for now
     local data = {}
     for name, pos in pairs(self.db.frames) do
-        table.insert(data, string.format("%s:%s:%s:%s:%.2f:%.2f",
+        table.insert(data, string.format("%s:%s:%s:%s:%.2f:%.2f:%.2f:%.2f",
             name,
             pos.point,
             pos.relativeTo,
             pos.relativePoint,
             pos.x,
-            pos.y
+            pos.y,
+            pos.scale or 1.0,
+            pos.alpha or 1.0
         ))
     end
     return table.concat(data, "|")
@@ -126,7 +171,7 @@ end
 function ZenAlign:ImportConfig(str)
     local parts = { strsplit("|", str) }
     for _, part in ipairs(parts) do
-        local name, point, relTo, relPoint, x, y = strsplit(":", part)
+        local name, point, relTo, relPoint, x, y, scale, alpha = strsplit(":", part)
         if name and point then
             self.db.frames[name] = {
                 point = point,
@@ -134,7 +179,10 @@ function ZenAlign:ImportConfig(str)
                 relativePoint = relPoint,
                 x = tonumber(x) or 0,
                 y = tonumber(y) or 0,
+                scale = tonumber(scale),
+                alpha = tonumber(alpha),
             }
         end
     end
 end
+
