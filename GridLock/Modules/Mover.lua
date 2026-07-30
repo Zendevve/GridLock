@@ -302,12 +302,23 @@ end
 
 -- Attach mover to a frame
 function Mover:AttachToFrame(frame)
+    if type(frame) == "string" then
+        frame = _G[frame]
+    end
     if not frame then return end
 
     local frameName = frame:GetName()
     if not frameName then
         GridLock.Utils.Debug("Cannot attach mover to unnamed frame")
         return
+    end
+
+    -- Enable frame mobility
+    if frame.SetMovable then
+        frame:SetMovable(true)
+    end
+    if frame.SetUserPlaced then
+        frame:SetUserPlaced(true)
     end
 
     -- Check if already has a mover
@@ -321,15 +332,16 @@ function Mover:AttachToFrame(frame)
         return
     end
 
+    -- Disable Blizzard managed positioning for this frame
+    local Position = GridLock:GetModule("Position")
+    if Position then
+        Position:DisableManagedPosition(frameName)
+        Position:SaveOriginalPosition(frameName, frame)
+    end
+
     local mover = self:GetMover()
     mover.targetFrame = frame
     mover.frameName = frameName
-
-    -- Store original points in Position module for reset
-    local Position = GridLock:GetModule("Position")
-    if Position then
-        Position:SaveOriginalPosition(frameName, frame)
-    end
 
     -- Position mover over target frame
     self:UpdateMoverPosition(mover)
@@ -355,17 +367,25 @@ function Mover:UpdateMoverPosition(mover)
     local frame = mover.targetFrame
     if not frame then return end
 
-    local scale = frame:GetEffectiveScale()
-    local width = frame:GetWidth() * scale
-    local height = frame:GetHeight() * scale
-    local x, y = GridLock.Utils.GetFrameCenter(frame)
+    local scale = (frame.GetEffectiveScale and frame:GetEffectiveScale()) or 1.0
+    local moverScale = mover:GetEffectiveScale() or 1.0
 
+    local rawW = frame.GetWidth and frame:GetWidth() or 0
+    local rawH = frame.GetHeight and frame:GetHeight() or 0
+
+    if rawW <= 0 then rawW = 120 end
+    if rawH <= 0 then rawH = 30 end
+
+    local width = math.max(rawW * scale, 40)
+    local height = math.max(rawH * scale, 20)
+
+    local x, y = GridLock.Utils.GetFrameCenter(frame)
     if not x or not y then return end
 
-    mover:SetWidth(math.max(width, 40))
-    mover:SetHeight(math.max(height, 20))
+    mover:SetWidth(width / moverScale)
+    mover:SetHeight(height / moverScale)
     mover:ClearAllPoints()
-    mover:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+    mover:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / moverScale, y / moverScale)
     if mover.toolbar then
         mover.toolbar:SetFrameLevel(mover:GetFrameLevel() + 10)
     end
