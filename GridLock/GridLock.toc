@@ -29,6 +29,10 @@ Modules\Picker.lua
 Modules\Keybind.lua
 Modules\FadeManager.lua
 Modules\BarLayout.lua
+Modules\ActionBarState.lua
+Modules\SpecialBars.lua
+Modules\BlizzardArt.lua
+
 
 
 # UI
