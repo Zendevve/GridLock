@@ -27,6 +27,7 @@ Modules\Position.lua
 Modules\Visibility.lua
 Modules\Picker.lua
 Modules\Keybind.lua
+Modules\Profile.lua
 Modules\FadeManager.lua
 Modules\BarLayout.lua
 Modules\ActionBarState.lua

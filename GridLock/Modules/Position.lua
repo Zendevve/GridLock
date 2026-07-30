@@ -1,10 +1,17 @@
 -- GridLock Position Module
 -- Handles saving, loading, and applying frame positions
 
-local GridLock = select(2, ...)
+local addonName, GridLock = ...
+GridLock = GridLock or _G.GridLock or {}
+_G.GridLock = GridLock
 
 local Position = {}
-GridLock:RegisterModule("Position", Position)
+if type(GridLock.RegisterModule) == "function" then
+    GridLock:RegisterModule("Position", Position)
+else
+    GridLock.modules = GridLock.modules or {}
+    GridLock.modules["Position"] = Position
+end
 
 -- Original positions storage (for reset)
 Position.originalPositions = {}

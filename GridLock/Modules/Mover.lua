@@ -1,10 +1,17 @@
 -- GridLock Mover Module
 -- Handles frame movers for drag-to-move, drag-to-scale, alpha adjustment, and quick controls
 
-local GridLock = select(2, ...)
+local addonName, GridLock = ...
+GridLock = GridLock or _G.GridLock or {}
+_G.GridLock = GridLock
 
 local Mover = {}
-GridLock:RegisterModule("Mover", Mover)
+if type(GridLock.RegisterModule) == "function" then
+    GridLock:RegisterModule("Mover", Mover)
+else
+    GridLock.modules = GridLock.modules or {}
+    GridLock.modules["Mover"] = Mover
+end
 
 -- Active movers
 Mover.movers = {}

@@ -73,11 +73,22 @@ end
 
 -- Register slash commands
 function GridLock:RegisterSlashCommands()
-    SLASH_GRIDLOCK1 = "/zenalign"
-    SLASH_GRIDLOCK2 = "/za"
+    SLASH_GRIDLOCK1 = "/gridlock"
+    SLASH_GRIDLOCK2 = "/gl"
+    SLASH_GRIDLOCK3 = "/zenalign"
+    SLASH_GRIDLOCK4 = "/za"
 
     SlashCmdList["GRIDLOCK"] = function(msg)
         self:HandleSlashCommand(msg)
+    end
+
+    SLASH_GRIDKEYBIND1 = "/kb"
+    SLASH_GRIDKEYBIND2 = "/keybind"
+    SlashCmdList["GRIDKEYBIND"] = function(msg)
+        local Keybind = self:GetModule("Keybind")
+        if Keybind then
+            Keybind:Toggle()
+        end
     end
 end
 

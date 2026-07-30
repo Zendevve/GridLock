@@ -1,7 +1,9 @@
 -- GridLock Frame Data
 -- Comprehensive Blizzard & Addon frame catalog for WoW 3.3.5a
 
-local GridLock = select(2, ...)
+local addonName, GridLock = ...
+GridLock = GridLock or _G.GridLock or {}
+_G.GridLock = GridLock
 
 GridLock.FrameData = {}
 local FD = GridLock.FrameData

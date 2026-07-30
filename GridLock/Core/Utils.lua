@@ -1,6 +1,8 @@
 -- GridLock Utility Functions
 
-local GridLock = select(2, ...)
+local addonName, GridLock = ...
+GridLock = GridLock or _G.GridLock or {}
+_G.GridLock = GridLock
 
 GridLock.Utils = {}
 local Utils = GridLock.Utils

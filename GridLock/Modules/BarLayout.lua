@@ -286,4 +286,61 @@ function GridLock:ToggleBarMacroText(barFrame, showMacroText)
     end
 end
 
+-- 7. Set Bar Icon Zoom (Crop button border textures for clean borderless aesthetic)
+function GridLock:SetBarIconZoom(barFrame, zoomEnabled)
+    if not barFrame then return end
+    local zoom = not not zoomEnabled
+    barFrame.iconZoomed = zoom
+
+    local buttons = BarLayout:GetBarButtons(barFrame)
+    for _, btn in ipairs(buttons) do
+        local btnName = btn.GetName and btn:GetName()
+        local icon = (btnName and _G[btnName .. "Icon"]) or btn.icon or btn.Icon
+        if icon and icon.SetTexCoord then
+            if zoom then
+                icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            else
+                icon:SetTexCoord(0, 1, 0, 1)
+            end
+        end
+    end
+end
+
+-- 8. Set Bar Click-Through (Disable mouse interaction per bar)
+function GridLock:SetBarClickThrough(barFrame, clickThroughEnabled)
+    if not barFrame then return end
+    local clickThrough = not not clickThroughEnabled
+    barFrame.clickThrough = clickThrough
+
+    if barFrame.EnableMouse then
+        barFrame:EnableMouse(not clickThrough)
+    end
+
+    local buttons = BarLayout:GetBarButtons(barFrame)
+    for _, btn in ipairs(buttons) do
+        if btn.EnableMouse then
+            btn:EnableMouse(not clickThrough)
+        end
+    end
+end
+
+-- 9. Set Bar Normal Texture Visibility
+function GridLock:SetBarNormalTextureVisibility(barFrame, visible)
+    if not barFrame then return end
+    local showNorm = not not visible
+    barFrame.showNormalTexture = showNorm
+
+    local buttons = BarLayout:GetBarButtons(barFrame)
+    for _, btn in ipairs(buttons) do
+        local norm = btn.GetNormalTexture and btn:GetNormalTexture()
+        if norm then
+            if showNorm then
+                norm:Show()
+            else
+                norm:Hide()
+            end
+        end
+    end
+end
+
 return BarLayout

@@ -5,7 +5,12 @@ local addonName, GridLock = ...
 GridLock = GridLock or _G.GridLock
 
 local Keybind = {}
-GridLock:RegisterModule("Keybind", Keybind)
+if type(GridLock.RegisterModule) == "function" then
+    GridLock:RegisterModule("Keybind", Keybind)
+else
+    GridLock.modules = GridLock.modules or {}
+    GridLock.modules["Keybind"] = Keybind
+end
 
 Keybind.active = false
 Keybind.catcher = nil
@@ -159,17 +164,30 @@ end
 function Keybind:OnUpdate(elapsed)
     if not self.active then return end
 
-    if self.catcher then
-        self.catcher:EnableMouse(false)
-    end
-
     local focus = GetMouseFocus()
-
-    if self.catcher then
-        self.catcher:EnableMouse(true)
-    end
-
     local button = self:FindCandidateButton(focus)
+
+    if not button then
+        -- Fallback: check MouseIsOver across all registered bar buttons
+        local barNames = {
+            "MainMenuBar", "MultiBarBottomLeft", "MultiBarBottomRight",
+            "MultiBarRight", "MultiBarLeft", "PetActionBarFrame",
+            "ShapeshiftBarFrame", "ActionBar6", "ActionBar7", "ActionBar8", "ActionBar9", "ActionBar10"
+        }
+        local BarLayout = GridLock:GetModule("BarLayout") or GridLock.BarLayout
+        if BarLayout and BarLayout.GetBarButtons then
+            for _, barName in ipairs(barNames) do
+                local buttons = BarLayout:GetBarButtons(barName)
+                for _, btn in ipairs(buttons or {}) do
+                    if btn and btn.IsShown and btn:IsShown() and MouseIsOver and MouseIsOver(btn) then
+                        button = btn
+                        break
+                    end
+                end
+                if button then break end
+            end
+        end
+    end
 
     if button then
         self.hoveredButton = button

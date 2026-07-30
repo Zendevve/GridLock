@@ -1,7 +1,9 @@
 -- GridLock Position Data
 -- Default positions and position presets for Blizzard UI elements
 
-local GridLock = select(2, ...)
+local addonName, GridLock = ...
+GridLock = GridLock or _G.GridLock or {}
+_G.GridLock = GridLock
 
 GridLock.PositionData = {}
 local PD = GridLock.PositionData

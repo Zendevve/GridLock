@@ -1,6 +1,8 @@
 -- GridLock Configuration and SavedVariables
 
-local GridLock = select(2, ...)
+local addonName, GridLock = ...
+GridLock = GridLock or _G.GridLock or {}
+_G.GridLock = GridLock
 
 -- Default configuration
 local defaults = {
