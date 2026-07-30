@@ -1,5 +1,5 @@
 -- GridLock Dashboard Module
--- Master 2-column UI combining Category Frame Registry and Active Frame Inspector
+-- Ergonomic Dark-Glassmorphic Master Control Panel for WoW 3.3.5a
 
 local GridLock = select(2, ...)
 
@@ -20,7 +20,7 @@ function Dashboard:OnInitialize()
     -- Created on demand
 end
 
--- Create a clean, reliable slider using OptionsSliderTemplate (3.3.5a compliant)
+-- Create a sleek, modern slider using WHITE8X8 backdrop (3.3.5a compliant)
 local function CreateCleanSlider(name, parent, width, height, minVal, maxVal, step)
     local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
     slider:SetWidth(width)
@@ -42,803 +42,621 @@ end
 function Dashboard:CreateFrame()
     if self.frame then return self.frame end
 
-    -- Container Frame
+    -- Container Frame (Dark Glassmorphic #040508 with 1px #00CCFF Glowing Cyan Border)
     local f = CreateFrame("Frame", "GridLockDashboard", UIParent)
-    f:SetWidth(600)
-    f:SetHeight(440)
+    f:SetWidth(640)
+    f:SetHeight(460)
     f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     f:SetFrameStrata("DIALOG")
-    f:SetFrameLevel(50)
+    f:SetFrameLevel(100)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:SetClampedToScreen(true)
 
-    -- Backdrop styling
     f:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = true, tileSize = 32, edgeSize = 32,
-        insets = { left = 11, right = 12, top = 12, bottom = 11 }
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        tile = false, tileSize = 0, edgeSize = 1,
+        insets = { left = 0, right = 0, top = 0, bottom = 0 }
     })
+    f:SetBackdropColor(0.03, 0.04, 0.06, 0.95)
+    f:SetBackdropBorderColor(0.0, 0.8, 1.0, 0.8)
 
-    -- Title Header Texture
-    local titleBg = f:CreateTexture(nil, "ARTWORK")
-    titleBg:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Header")
-    titleBg:SetPoint("TOP", f, "TOP", 0, 12)
-    titleBg:SetWidth(320)
-    titleBg:SetHeight(64)
+    -- Header Bar
+    local header = CreateFrame("Frame", nil, f)
+    header:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+    header:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
+    header:SetHeight(36)
+    header:EnableMouse(true)
+    header:SetScript("OnMouseDown", function() f:StartMoving() end)
+    header:SetScript("OnMouseUp", function() f:StopMovingOrSizing() end)
 
-    local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOP", f, "TOP", 0, -4)
-    title:SetText("GridLock Dashboard")
+    local headerBg = header:CreateTexture(nil, "BACKGROUND")
+    headerBg:SetAllPoints(header)
+    headerBg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    headerBg:SetVertexColor(0.06, 0.08, 0.12, 0.9)
 
-    -- Drag Header Region (stops before close button, frame level 50)
-    local drag = CreateFrame("Frame", nil, f)
-    drag:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
-    drag:SetPoint("TOPRIGHT", f, "TOPRIGHT", -35, 0)
-    drag:SetHeight(32)
-    drag:EnableMouse(true)
-    drag:SetFrameLevel(f:GetFrameLevel())
-    drag:SetScript("OnMouseDown", function() f:StartMoving() end)
-    drag:SetScript("OnMouseUp", function() f:StopMovingOrSizing() end)
+    -- Brand Icon & Title
+    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalMed3")
+    title:SetPoint("LEFT", header, "LEFT", 12, 0)
+    title:SetText("|cFF00CCFFGRIDLOCK|r Dashboard")
 
-    -- Close Button (elevated above drag header)
-    local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -5, -5)
-    closeBtn:SetFrameLevel(f:GetFrameLevel() + 20)
+    -- Top Action Buttons: Keybind Mode [KB] & Mouseover Picker [PICK]
+    local btnKB = CreateFrame("Button", nil, header, "UIPanelButtonTemplate")
+    btnKB:SetWidth(45)
+    btnKB:SetHeight(22)
+    btnKB:SetPoint("RIGHT", header, "RIGHT", -38, 0)
+    btnKB:SetText("[KB]")
+    btnKB:SetScript("OnClick", function()
+        local Keybind = GridLock:GetModule("Keybind")
+        if Keybind then Keybind:Toggle() end
+    end)
+
+    local btnPick = CreateFrame("Button", nil, header, "UIPanelButtonTemplate")
+    btnPick:SetWidth(50)
+    btnPick:SetHeight(22)
+    btnPick:SetPoint("RIGHT", btnKB, "LEFT", -4, 0)
+    btnPick:SetText("[PICK]")
+    btnPick:SetScript("OnClick", function()
+        local Picker = GridLock:GetModule("Picker")
+        if Picker then Picker:Toggle() end
+    end)
+
+    -- Close Button
+    local closeBtn = CreateFrame("Button", nil, header, "UIPanelCloseButton")
+    closeBtn:SetPoint("RIGHT", header, "RIGHT", -5, 0)
     closeBtn:SetScript("OnClick", function() Dashboard:Hide() end)
 
     ---------------------------------------------------------------------------
-    -- LEFT COLUMN: Category Registry & Filter (Width: 265px)
+    -- LEFT COLUMN: Category Registry & Search (Width: 250px)
     ---------------------------------------------------------------------------
     local leftBox = CreateFrame("Frame", nil, f)
-    leftBox:SetPoint("TOPLEFT", f, "TOPLEFT", 15, -35)
-    leftBox:SetWidth(265)
-    leftBox:SetHeight(385)
+    leftBox:SetPoint("TOPLEFT", f, "TOPLEFT", 12, -44)
+    leftBox:SetWidth(250)
+    leftBox:SetHeight(404)
     leftBox:SetFrameLevel(f:GetFrameLevel() + 5)
 
-    -- Search EditBox
+    -- Search Bar
     local searchBox = CreateFrame("EditBox", "GridLockDashboardSearch", leftBox, "InputBoxTemplate")
-    searchBox:SetWidth(170)
-    searchBox:SetHeight(20)
+    searchBox:SetWidth(165)
+    searchBox:SetHeight(22)
     searchBox:SetPoint("TOPLEFT", leftBox, "TOPLEFT", 5, 0)
     searchBox:SetAutoFocus(false)
     searchBox:SetText("")
-    searchBox:SetScript("OnTextChanged", function(self)
-        Dashboard.searchText = self:GetText()
-        if leftBox.scrollFrame then
-            leftBox.scrollFrame:SetVerticalScroll(0)
-        end
+    searchBox:SetScript("OnTextChanged", function(selfEdit)
+        Dashboard.searchText = selfEdit:GetText()
+        if leftBox.scrollFrame then leftBox.scrollFrame:SetVerticalScroll(0) end
         Dashboard:UpdateList()
     end)
-    searchBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    searchBox:SetScript("OnEscapePressed", function(selfEdit) selfEdit:ClearFocus() end)
     leftBox.searchBox = searchBox
 
     -- Reset All Button
     local resetAllBtn = CreateFrame("Button", nil, leftBox, "UIPanelButtonTemplate")
-    resetAllBtn:SetWidth(72)
-    resetAllBtn:SetHeight(20)
-    resetAllBtn:SetPoint("LEFT", searchBox, "RIGHT", 6, 0)
+    resetAllBtn:SetWidth(70)
+    resetAllBtn:SetHeight(22)
+    resetAllBtn:SetPoint("LEFT", searchBox, "RIGHT", 4, 0)
     resetAllBtn:SetText("Reset All")
-    resetAllBtn:SetFrameLevel(leftBox:GetFrameLevel() + 2)
     resetAllBtn:SetScript("OnClick", function()
         GridLock:ResetAllFrames()
     end)
-    leftBox.resetAllBtn = resetAllBtn
 
-    -- Category Filters Container (2 rows of 4 buttons)
+    -- Category Pill Tabs (Single clean row of 5 consolidated categories)
     local catFrame = CreateFrame("Frame", nil, leftBox)
-    catFrame:SetPoint("TOPLEFT", searchBox, "BOTTOMLEFT", -5, -4)
-    catFrame:SetWidth(255)
-    catFrame:SetHeight(44)
-    catFrame:SetFrameLevel(leftBox:GetFrameLevel() + 2)
+    catFrame:SetPoint("TOPLEFT", searchBox, "BOTTOMLEFT", -5, -6)
+    catFrame:SetWidth(245)
+    catFrame:SetHeight(24)
 
-    local categories = GridLock.FrameData and GridLock.FrameData.categories or {
+    local categories = {
         { name = "All", key = "all" },
-        { name = "Unit", key = "unit" },
         { name = "Bars", key = "bars" },
+        { name = "Unit", key = "unit" },
         { name = "Map", key = "map" },
-        { name = "Raid", key = "raid" },
-        { name = "PvP", key = "pvp" },
-        { name = "Bags", key = "bags" },
         { name = "Misc", key = "misc" },
     }
 
     self.catButtons = {}
     for i, cat in ipairs(categories) do
         local btn = CreateFrame("Button", nil, catFrame, "UIPanelButtonTemplate")
-        btn:SetWidth(60)
-        btn:SetHeight(20)
-
-        local row = math.floor((i - 1) / 4)
-        local col = (i - 1) % 4
-        btn:SetPoint("TOPLEFT", catFrame, "TOPLEFT", col * 63, -row * 22)
+        btn:SetWidth(47)
+        btn:SetHeight(22)
+        btn:SetPoint("LEFT", catFrame, "LEFT", (i - 1) * 49, 0)
         btn:SetText(cat.name)
-        btn.categoryKey = cat.key
-        btn:SetFrameLevel(catFrame:GetFrameLevel() + 2)
+        btn.catKey = cat.key
 
-        btn:SetScript("OnClick", function()
-            Dashboard:SelectCategory(cat.key)
+        btn:SetScript("OnClick", function(selfBtn)
+            Dashboard.selectedCategory = selfBtn.catKey
+            Dashboard:UpdateCatButtons()
+            if leftBox.scrollFrame then leftBox.scrollFrame:SetVerticalScroll(0) end
+            Dashboard:UpdateList()
         end)
-
-        table.insert(self.catButtons, btn)
+        self.catButtons[cat.key] = btn
     end
 
-    -- Scroll Frame for Registered WoW Frames List
-    local scrollFrame = CreateFrame("ScrollFrame", "GridLockDashboardScrollFrame", leftBox, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", catFrame, "BOTTOMLEFT", 0, -4)
-    scrollFrame:SetPoint("BOTTOMRIGHT", leftBox, "BOTTOMRIGHT", -22, 5)
-    scrollFrame:SetFrameLevel(leftBox:GetFrameLevel() + 5)
+    -- ScrollFrame & Item List Panel
+    local scrollFrame = CreateFrame("ScrollFrame", "GridLockDashboardScroll", leftBox, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", catFrame, "BOTTOMLEFT", 0, -6)
+    scrollFrame:SetWidth(222)
+    scrollFrame:SetHeight(344)
 
-    local scrollChild = CreateFrame("Frame", "GridLockDashboardScrollChild", scrollFrame)
-    scrollChild:SetWidth(235)
-    scrollChild:SetHeight(300)
+    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+    scrollChild:SetWidth(222)
+    scrollChild:SetHeight(1)
     scrollFrame:SetScrollChild(scrollChild)
-    leftBox.scrollChild = scrollChild
     leftBox.scrollFrame = scrollFrame
-    f.leftBox = leftBox
+    leftBox.scrollChild = scrollChild
 
     ---------------------------------------------------------------------------
-    -- RIGHT COLUMN: Active Frame Inspector (Width: 290px)
+    -- RIGHT COLUMN: Active Frame Inspector & Guided Empty State (Width: 354px)
     ---------------------------------------------------------------------------
     local rightBox = CreateFrame("Frame", nil, f)
-    rightBox:SetPoint("TOPRIGHT", f, "TOPRIGHT", -15, -35)
-    rightBox:SetWidth(290)
-    rightBox:SetHeight(385)
+    rightBox:SetPoint("TOPLEFT", leftBox, "TOPRIGHT", 12, 0)
+    rightBox:SetWidth(354)
+    rightBox:SetHeight(404)
     rightBox:SetFrameLevel(f:GetFrameLevel() + 5)
 
-    -- Right Panel Dark Glass Backdrop
     rightBox:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        tile = false, tileSize = 0, edgeSize = 1,
+        insets = { left = 0, right = 0, top = 0, bottom = 0 }
     })
-    rightBox:SetBackdropColor(0.1, 0.1, 0.12, 0.7)
+    rightBox:SetBackdropColor(0.05, 0.07, 0.10, 0.8)
+    rightBox:SetBackdropBorderColor(0.15, 0.20, 0.28, 0.8)
 
-    -- Active Frame Header Label (Name and Category)
-    local inspectorTitle = rightBox:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    inspectorTitle:SetPoint("TOP", rightBox, "TOP", 0, -10)
-    inspectorTitle:SetText("No Frame Selected")
-    rightBox.inspectorTitle = inspectorTitle
+    -- 1. GUIDED EMPTY STATE PANEL (Displayed when no frame is selected)
+    local emptyPanel = CreateFrame("Frame", nil, rightBox)
+    emptyPanel:SetAllPoints(rightBox)
 
-    local yPos = -35
+    local emptyIcon = emptyPanel:CreateTexture(nil, "ARTWORK")
+    emptyIcon:SetTexture("Interface\\Icons\\ABILITY_SEAL")
+    emptyIcon:SetWidth(40)
+    emptyIcon:SetHeight(40)
+    emptyIcon:SetPoint("TOP", emptyPanel, "TOP", 0, -60)
+    emptyIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    -- X POSITION: Label, EditBox, Slider
-    local xLabel = rightBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    xLabel:SetPoint("TOPLEFT", rightBox, "TOPLEFT", 12, yPos)
-    xLabel:SetText("X Pos:")
+    local emptyTitle = emptyPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalMed2")
+    emptyTitle:SetPoint("TOP", emptyIcon, "BOTTOM", 0, -12)
+    emptyTitle:SetText("|cFF00CCFFNo Frame Selected|r")
 
-    local xEdit = CreateFrame("EditBox", "GridLockDashXEdit", rightBox, "InputBoxTemplate")
-    xEdit:SetWidth(50)
-    xEdit:SetHeight(18)
-    xEdit:SetPoint("LEFT", xLabel, "RIGHT", 10, 0)
-    xEdit:SetAutoFocus(false)
+    local emptyDesc = emptyPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    emptyDesc:SetPoint("TOP", emptyTitle, "BOTTOM", 0, -8)
+    emptyDesc:SetWidth(300)
+    emptyDesc:SetText("Select any UI frame from the list on the left, or click |cFF00FF99[Pick Frame]|r to hover and click any element on your screen.")
 
-    local function CommitXEdit(self)
-        local val = tonumber(self:GetText())
-        if val and Dashboard.currentFrame then
-            rightBox.xSlider:SetValue(val)
-            Dashboard:OnPositionChanged()
-        elseif Dashboard.currentFrame then
-            local x, _ = GridLock.Utils.GetFrameCenter(Dashboard.currentFrame)
-            if x then self:SetText(GridLock.Utils.Round(x, 0)) end
-        end
-    end
-    xEdit:SetScript("OnEnterPressed", function(self) CommitXEdit(self); self:ClearFocus() end)
-    xEdit:SetScript("OnTabPressed", function(self) CommitXEdit(self); self:ClearFocus() end)
-    xEdit:SetScript("OnEditFocusLost", function(self) CommitXEdit(self) end)
-    rightBox.xEdit = xEdit
-
-    local xSlider = CreateCleanSlider("GridLockDashXSlider", rightBox, 135, 17, -2000, 2000, 1)
-    xSlider:SetPoint("LEFT", xEdit, "RIGHT", 8, 0)
-    xSlider:SetScript("OnValueChanged", function(self, value)
-        if Dashboard.updating then return end
-        rightBox.xEdit:SetText(GridLock.Utils.Round(value, 0))
-        Dashboard:OnPositionChanged()
-    end)
-    rightBox.xSlider = xSlider
-
-    yPos = yPos - 28
-
-    -- Y POSITION: Label, EditBox, Slider
-    local yLabel = rightBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    yLabel:SetPoint("TOPLEFT", rightBox, "TOPLEFT", 12, yPos)
-    yLabel:SetText("Y Pos:")
-
-    local yEdit = CreateFrame("EditBox", "GridLockDashYEdit", rightBox, "InputBoxTemplate")
-    yEdit:SetWidth(50)
-    yEdit:SetHeight(18)
-    yEdit:SetPoint("LEFT", yLabel, "RIGHT", 10, 0)
-    yEdit:SetAutoFocus(false)
-
-    local function CommitYEdit(self)
-        local val = tonumber(self:GetText())
-        if val and Dashboard.currentFrame then
-            rightBox.ySlider:SetValue(val)
-            Dashboard:OnPositionChanged()
-        elseif Dashboard.currentFrame then
-            local _, y = GridLock.Utils.GetFrameCenter(Dashboard.currentFrame)
-            if y then self:SetText(GridLock.Utils.Round(y, 0)) end
-        end
-    end
-    yEdit:SetScript("OnEnterPressed", function(self) CommitYEdit(self); self:ClearFocus() end)
-    yEdit:SetScript("OnTabPressed", function(self) CommitYEdit(self); self:ClearFocus() end)
-    yEdit:SetScript("OnEditFocusLost", function(self) CommitYEdit(self) end)
-    rightBox.yEdit = yEdit
-
-    local ySlider = CreateCleanSlider("GridLockDashYSlider", rightBox, 135, 17, -2000, 2000, 1)
-    ySlider:SetPoint("LEFT", yEdit, "RIGHT", 8, 0)
-    ySlider:SetScript("OnValueChanged", function(self, value)
-        if Dashboard.updating then return end
-        rightBox.yEdit:SetText(GridLock.Utils.Round(value, 0))
-        Dashboard:OnPositionChanged()
-    end)
-    rightBox.ySlider = ySlider
-
-    yPos = yPos - 30
-
-    -- SCALE %: Label, EditBox, Slider (50% - 200%)
-    local scaleLabel = rightBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    scaleLabel:SetPoint("TOPLEFT", rightBox, "TOPLEFT", 12, yPos)
-    scaleLabel:SetText("Scale %:")
-
-    local scaleEdit = CreateFrame("EditBox", "GridLockDashScaleEdit", rightBox, "InputBoxTemplate")
-    scaleEdit:SetWidth(45)
-    scaleEdit:SetHeight(18)
-    scaleEdit:SetPoint("LEFT", scaleLabel, "RIGHT", 5, 0)
-    scaleEdit:SetAutoFocus(false)
-
-    local function CommitScaleEdit(self)
-        local text = self:GetText():gsub("%%", "")
-        local val = tonumber(text)
-        if val and Dashboard.currentFrame then
-            local scaleVal = val / 100
-            rightBox.scaleSlider:SetValue(scaleVal)
-            Dashboard:OnScaleChanged(scaleVal)
-        elseif Dashboard.currentFrame then
-            local scaleVal = Dashboard.currentFrame:GetScale() or 1.0
-            self:SetText(math.floor(scaleVal * 100 + 0.5) .. "%")
-        end
-    end
-    scaleEdit:SetScript("OnEnterPressed", function(self) CommitScaleEdit(self); self:ClearFocus() end)
-    scaleEdit:SetScript("OnTabPressed", function(self) CommitScaleEdit(self); self:ClearFocus() end)
-    scaleEdit:SetScript("OnEditFocusLost", function(self) CommitScaleEdit(self) end)
-    rightBox.scaleEdit = scaleEdit
-
-    local scaleSlider = CreateCleanSlider("GridLockDashScaleSlider", rightBox, 135, 17, 0.50, 2.00, 0.05)
-    scaleSlider:SetPoint("LEFT", scaleEdit, "RIGHT", 8, 0)
-    scaleSlider:SetScript("OnValueChanged", function(self, value)
-        if Dashboard.updating then return end
-        rightBox.scaleEdit:SetText(math.floor(value * 100 + 0.5) .. "%")
-        Dashboard:OnScaleChanged(value)
-    end)
-    rightBox.scaleSlider = scaleSlider
-
-    yPos = yPos - 28
-
-    -- ALPHA %: Label, EditBox, Slider (0% - 100%)
-    local alphaLabel = rightBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    alphaLabel:SetPoint("TOPLEFT", rightBox, "TOPLEFT", 12, yPos)
-    alphaLabel:SetText("Alpha %:")
-
-    local alphaEdit = CreateFrame("EditBox", "GridLockDashAlphaEdit", rightBox, "InputBoxTemplate")
-    alphaEdit:SetWidth(45)
-    alphaEdit:SetHeight(18)
-    alphaEdit:SetPoint("LEFT", alphaLabel, "RIGHT", 5, 0)
-    alphaEdit:SetAutoFocus(false)
-
-    local function CommitAlphaEdit(self)
-        local text = self:GetText():gsub("%%", "")
-        local val = tonumber(text)
-        if val and Dashboard.currentFrame then
-            local alphaVal = math.min(1.0, math.max(0.10, val / 100))
-            rightBox.alphaSlider:SetValue(alphaVal)
-            Dashboard:OnAlphaChanged(alphaVal)
-            self:SetText(math.floor(alphaVal * 100 + 0.5) .. "%")
-        elseif Dashboard.currentFrame then
-            local alphaVal = Dashboard.currentFrame:GetAlpha() or 1.0
-            if alphaVal < 0.10 then alphaVal = 1.0 end
-            self:SetText(math.floor(alphaVal * 100 + 0.5) .. "%")
-        end
-    end
-    alphaEdit:SetScript("OnEnterPressed", function(self) CommitAlphaEdit(self); self:ClearFocus() end)
-    alphaEdit:SetScript("OnTabPressed", function(self) CommitAlphaEdit(self); self:ClearFocus() end)
-    alphaEdit:SetScript("OnEditFocusLost", function(self) CommitAlphaEdit(self) end)
-    rightBox.alphaEdit = alphaEdit
-
-    local alphaSlider = CreateCleanSlider("GridLockDashAlphaSlider", rightBox, 135, 17, 0.10, 1.00, 0.05)
-    alphaSlider:SetPoint("LEFT", alphaEdit, "RIGHT", 8, 0)
-    alphaSlider:SetScript("OnValueChanged", function(self, value)
-        if Dashboard.updating then return end
-        rightBox.alphaEdit:SetText(math.floor(value * 100 + 0.5) .. "%")
-        Dashboard:OnAlphaChanged(value)
-    end)
-    rightBox.alphaSlider = alphaSlider
-
-    yPos = yPos - 35
-
-    -- 4-WAY ASCII PIXEL NUDGE PAD
-    local nudgeTitle = rightBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    nudgeTitle:SetPoint("TOPLEFT", rightBox, "TOPLEFT", 12, yPos)
-    nudgeTitle:SetText("Pixel Nudge (Shift = 10px):")
-
-    local nudgePad = CreateFrame("Frame", nil, rightBox)
-    nudgePad:SetWidth(90)
-    nudgePad:SetHeight(55)
-    nudgePad:SetPoint("TOPLEFT", rightBox, "TOPLEFT", 175, yPos + 10)
-
-    local btnUp = CreateFrame("Button", nil, nudgePad, "UIPanelButtonTemplate")
-    btnUp:SetWidth(24)
-    btnUp:SetHeight(20)
-    btnUp:SetPoint("TOP", nudgePad, "TOP", 0, 0)
-    btnUp:SetText("^")
-    btnUp:SetFrameLevel(rightBox:GetFrameLevel() + 10)
-    btnUp:SetScript("OnClick", function()
-        local step = IsShiftKeyDown() and 10 or 1
-        Dashboard:Nudge(0, step)
-    end)
-
-    local btnDown = CreateFrame("Button", nil, nudgePad, "UIPanelButtonTemplate")
-    btnDown:SetWidth(24)
-    btnDown:SetHeight(20)
-    btnDown:SetPoint("BOTTOM", nudgePad, "BOTTOM", 0, 0)
-    btnDown:SetText("v")
-    btnDown:SetFrameLevel(rightBox:GetFrameLevel() + 10)
-    btnDown:SetScript("OnClick", function()
-        local step = IsShiftKeyDown() and 10 or 1
-        Dashboard:Nudge(0, -step)
-    end)
-
-    local btnLeft = CreateFrame("Button", nil, nudgePad, "UIPanelButtonTemplate")
-    btnLeft:SetWidth(24)
-    btnLeft:SetHeight(20)
-    btnLeft:SetPoint("LEFT", nudgePad, "LEFT", 0, 0)
-    btnLeft:SetText("<")
-    btnLeft:SetFrameLevel(rightBox:GetFrameLevel() + 10)
-    btnLeft:SetScript("OnClick", function()
-        local step = IsShiftKeyDown() and 10 or 1
-        Dashboard:Nudge(-step, 0)
-    end)
-
-    local btnRight = CreateFrame("Button", nil, nudgePad, "UIPanelButtonTemplate")
-    btnRight:SetWidth(24)
-    btnRight:SetHeight(20)
-    btnRight:SetPoint("RIGHT", nudgePad, "RIGHT", 0, 0)
-    btnRight:SetText(">")
-    btnRight:SetFrameLevel(rightBox:GetFrameLevel() + 10)
-    btnRight:SetScript("OnClick", function()
-        local step = IsShiftKeyDown() and 10 or 1
-        Dashboard:Nudge(step, 0)
-    end)
-
-    -- Bottom Action Buttons (Elevated frame level)
-    local pickBtn = CreateFrame("Button", nil, rightBox, "UIPanelButtonTemplate")
-    pickBtn:SetWidth(64)
-    pickBtn:SetHeight(22)
-    pickBtn:SetPoint("BOTTOMLEFT", rightBox, "BOTTOMLEFT", 8, 10)
-    pickBtn:SetText("Pick Frame")
-    pickBtn:SetFrameLevel(rightBox:GetFrameLevel() + 10)
-    pickBtn:SetScript("OnClick", function()
+    -- Quick Action Buttons in Empty State
+    local btnEmptyPick = CreateFrame("Button", nil, emptyPanel, "UIPanelButtonTemplate")
+    btnEmptyPick:SetWidth(140)
+    btnEmptyPick:SetHeight(26)
+    btnEmptyPick:SetPoint("TOP", emptyDesc, "BOTTOM", 0, -30)
+    btnEmptyPick:SetText("Pick Frame [Mouseover]")
+    btnEmptyPick:SetScript("OnClick", function()
         local Picker = GridLock:GetModule("Picker")
         if Picker then Picker:Start() end
     end)
 
-    local resetBtn = CreateFrame("Button", nil, rightBox, "UIPanelButtonTemplate")
-    resetBtn:SetWidth(64)
-    resetBtn:SetHeight(22)
-    resetBtn:SetPoint("LEFT", pickBtn, "RIGHT", 4, 0)
-    resetBtn:SetText("Reset")
-    resetBtn:SetFrameLevel(rightBox:GetFrameLevel() + 10)
-    resetBtn:SetScript("OnClick", function()
-        Dashboard:ResetCurrentFrame()
+    local btnEmptyKB = CreateFrame("Button", nil, emptyPanel, "UIPanelButtonTemplate")
+    btnEmptyKB:SetWidth(140)
+    btnEmptyKB:SetHeight(26)
+    btnEmptyKB:SetPoint("TOP", btnEmptyPick, "BOTTOM", 0, -10)
+    btnEmptyKB:SetText("Quick Keybind [/kb]")
+    btnEmptyKB:SetScript("OnClick", function()
+        local Keybind = GridLock:GetModule("Keybind")
+        if Keybind then Keybind:Toggle() end
     end)
 
-    local detachBtn = CreateFrame("Button", nil, rightBox, "UIPanelButtonTemplate")
-    detachBtn:SetWidth(64)
-    detachBtn:SetHeight(22)
-    detachBtn:SetPoint("LEFT", resetBtn, "RIGHT", 4, 0)
-    detachBtn:SetText("Detach")
-    detachBtn:SetFrameLevel(rightBox:GetFrameLevel() + 10)
-    detachBtn:SetScript("OnClick", function()
+    rightBox.emptyPanel = emptyPanel
+
+    -- 2. ACTIVE INSPECTOR PANEL (Displayed when a frame is selected)
+    local inspectorPanel = CreateFrame("Frame", nil, rightBox)
+    inspectorPanel:SetAllPoints(rightBox)
+    inspectorPanel:Hide()
+
+    -- Title & Status Badge
+    local frameTitle = inspectorPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalMed2")
+    frameTitle:SetPoint("TOPLEFT", inspectorPanel, "TOPLEFT", 12, -12)
+    frameTitle:SetText("Frame Inspector")
+    inspectorPanel.frameTitle = frameTitle
+
+    local statusBadge = inspectorPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    statusBadge:SetPoint("LEFT", frameTitle, "RIGHT", 10, 0)
+    inspectorPanel.statusBadge = statusBadge
+
+    -- Top Toolbar: Detach, Hide/Show, Reset
+    local toolbar = CreateFrame("Frame", nil, inspectorPanel)
+    toolbar:SetPoint("TOPLEFT", frameTitle, "BOTTOMLEFT", 0, -8)
+    toolbar:SetWidth(330)
+    toolbar:SetHeight(24)
+
+    local btnDetach = CreateFrame("Button", nil, toolbar, "UIPanelButtonTemplate")
+    btnDetach:SetWidth(95)
+    btnDetach:SetHeight(22)
+    btnDetach:SetPoint("LEFT", toolbar, "LEFT", 0, 0)
+    btnDetach:SetText("Detach Mover")
+    btnDetach:SetScript("OnClick", function()
         if Dashboard.currentFrameName then
             local Mover = GridLock:GetModule("Mover")
-            if Mover then
-                if Mover:GetMoverForFrame(Dashboard.currentFrameName) then
-                    Mover:DetachFromFrame(Dashboard.currentFrameName)
-                else
-                    local target = _G[Dashboard.currentFrameName]
-                    if target then Mover:AttachToFrame(target) end
-                end
-                Dashboard:UpdateInspector()
-            end
+            if Mover then Mover:DetachFromFrame(Dashboard.currentFrameName) end
+            Dashboard:SelectFrame(nil)
         end
     end)
-    rightBox.detachBtn = detachBtn
 
-    local hideBtn = CreateFrame("Button", nil, rightBox, "UIPanelButtonTemplate")
-    hideBtn:SetWidth(64)
-    hideBtn:SetHeight(22)
-    hideBtn:SetPoint("LEFT", detachBtn, "RIGHT", 4, 0)
-    hideBtn:SetText("Hide")
-    hideBtn:SetFrameLevel(rightBox:GetFrameLevel() + 10)
-    hideBtn:SetScript("OnClick", function()
+    local btnVis = CreateFrame("Button", nil, toolbar, "UIPanelButtonTemplate")
+    btnVis:SetWidth(95)
+    btnVis:SetHeight(22)
+    btnVis:SetPoint("LEFT", btnDetach, "RIGHT", 8, 0)
+    btnVis:SetText("Toggle Hide")
+    btnVis:SetScript("OnClick", function()
         if Dashboard.currentFrameName then
             local Visibility = GridLock:GetModule("Visibility")
-            if Visibility then
-                Visibility:ToggleFrame(Dashboard.currentFrameName)
-                Dashboard:UpdateInspector()
-                Dashboard:UpdateList()
-            end
+            if Visibility then Visibility:ToggleFrame(Dashboard.currentFrameName) end
+            Dashboard:UpdateInspector()
+            Dashboard:UpdateList()
         end
     end)
-    rightBox.hideBtn = hideBtn
+    inspectorPanel.btnVis = btnVis
 
-    f.rightBox = rightBox
-    f:Hide()
+    local btnReset = CreateFrame("Button", nil, toolbar, "UIPanelButtonTemplate")
+    btnReset:SetWidth(85)
+    btnReset:SetHeight(22)
+    btnReset:SetPoint("LEFT", btnVis, "RIGHT", 8, 0)
+    btnReset:SetText("Reset Frame")
+    btnReset:SetScript("OnClick", function()
+        if Dashboard.currentFrameName then
+            local Position = GridLock:GetModule("Position")
+            if Position then Position:ResetPosition(Dashboard.currentFrameName) end
+            Dashboard:UpdateInspector()
+            Dashboard:UpdateList()
+        end
+    end)
+
+    -- POSITION & NUDGE CONTROLS CARD
+    local posBox = CreateFrame("Frame", nil, inspectorPanel)
+    posBox:SetPoint("TOPLEFT", toolbar, "BOTTOMLEFT", 0, -10)
+    posBox:SetWidth(330)
+    posBox:SetHeight(130)
+
+    posBox:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        tile = false, tileSize = 0, edgeSize = 1,
+        insets = { left = 0, right = 0, top = 0, bottom = 0 }
+    })
+    posBox:SetBackdropColor(0.04, 0.05, 0.08, 0.9)
+    posBox:SetBackdropBorderColor(0.12, 0.16, 0.22, 0.8)
+
+    local posTitle = posBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    posTitle:SetPoint("TOPLEFT", posBox, "TOPLEFT", 8, -6)
+    posTitle:SetText("|cFF00CCFFPOSITION & NUDGE|r")
+
+    -- X EditBox
+    local labelX = posBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    labelX:SetPoint("TOPLEFT", posTitle, "BOTTOMLEFT", 0, -12)
+    labelX:SetText("X Pos:")
+
+    local editX = CreateFrame("EditBox", nil, posBox, "InputBoxTemplate")
+    editX:SetWidth(60)
+    editX:SetHeight(20)
+    editX:SetPoint("LEFT", labelX, "RIGHT", 8, 0)
+    editX:SetAutoFocus(false)
+    editX:SetScript("OnEnterPressed", function(selfEdit)
+        selfEdit:ClearFocus()
+        local val = tonumber(selfEdit:GetText())
+        if val and Dashboard.currentFrameName then
+            local Mover = GridLock:GetModule("Mover")
+            if Mover then Mover:NudgeFrame(Dashboard.currentFrameName, 0, 0) end
+        end
+    end)
+    inspectorPanel.editX = editX
+
+    -- Y EditBox
+    local labelY = posBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    labelY:SetPoint("TOPLEFT", labelX, "BOTTOMLEFT", 0, -12)
+    labelY:SetText("Y Pos:")
+
+    local editY = CreateFrame("EditBox", nil, posBox, "InputBoxTemplate")
+    editY:SetWidth(60)
+    editY:SetHeight(20)
+    editY:SetPoint("LEFT", labelY, "RIGHT", 8, 0)
+    editY:SetAutoFocus(false)
+    editY:SetScript("OnEnterPressed", function(selfEdit)
+        selfEdit:ClearFocus()
+        local val = tonumber(selfEdit:GetText())
+        if val and Dashboard.currentFrameName then
+            local Mover = GridLock:GetModule("Mover")
+            if Mover then Mover:NudgeFrame(Dashboard.currentFrameName, 0, 0) end
+        end
+    end)
+    inspectorPanel.editY = editY
+
+    -- 3x3 Cross Nudge Keypad
+    local nudgeFrame = CreateFrame("Frame", nil, posBox)
+    nudgeFrame:SetPoint("RIGHT", posBox, "RIGHT", -15, -10)
+    nudgeFrame:SetWidth(80)
+    nudgeFrame:SetHeight(80)
+
+    local nudgeLabel = posBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    nudgeLabel:SetPoint("BOTTOM", nudgeFrame, "TOP", 0, 2)
+    nudgeLabel:SetText("Shift=10px")
+
+    local function CreateNudgeBtn(text, px, py, dx, dy)
+        local btn = CreateFrame("Button", nil, nudgeFrame, "UIPanelButtonTemplate")
+        btn:SetWidth(24)
+        btn:SetHeight(24)
+        btn:SetPoint("CENTER", nudgeFrame, "CENTER", px, py)
+        btn:SetText(text)
+        btn:SetScript("OnClick", function()
+            if Dashboard.currentFrameName then
+                local step = IsShiftKeyDown() and 10 or 1
+                local Mover = GridLock:GetModule("Mover")
+                if Mover then Mover:NudgeFrame(Dashboard.currentFrameName, dx * step, dy * step) end
+                Dashboard:UpdateInspector()
+            end
+        end)
+        return btn
+    end
+
+    CreateNudgeBtn("^", 0, 24, 0, 1)
+    CreateNudgeBtn("<", -24, 0, -1, 0)
+    CreateNudgeBtn(">", 24, 0, 1, 0)
+    CreateNudgeBtn("v", 0, -24, 0, -1)
+
+    -- SCALE & ALPHA SLIDERS CARD
+    local sliderBox = CreateFrame("Frame", nil, inspectorPanel)
+    sliderBox:SetPoint("TOPLEFT", posBox, "BOTTOMLEFT", 0, -8)
+    sliderBox:SetWidth(330)
+    sliderBox:SetHeight(90)
+
+    sliderBox:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        tile = false, tileSize = 0, edgeSize = 1,
+        insets = { left = 0, right = 0, top = 0, bottom = 0 }
+    })
+    sliderBox:SetBackdropColor(0.04, 0.05, 0.08, 0.9)
+    sliderBox:SetBackdropBorderColor(0.12, 0.16, 0.22, 0.8)
+
+    -- Scale Slider
+    local labelScale = sliderBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    labelScale:SetPoint("TOPLEFT", sliderBox, "TOPLEFT", 8, -8)
+    labelScale:SetText("Scale: 100%")
+    inspectorPanel.labelScale = labelScale
+
+    local sliderScale = CreateCleanSlider("GridLockScaleSlider", sliderBox, 180, 16, 0.5, 2.0, 0.05)
+    sliderScale:SetPoint("LEFT", labelScale, "RIGHT", 12, 0)
+    sliderScale:SetScript("OnValueChanged", function(selfSlider, val)
+        if Dashboard.updating then return end
+        if Dashboard.currentFrameName then
+            val = GridLock.Utils.Round(val, 2)
+            local frame = _G[Dashboard.currentFrameName]
+            if frame and frame.SetScale then frame:SetScale(val) end
+            GridLock:SaveFrameScale(Dashboard.currentFrameName, val)
+            labelScale:SetText(string.format("Scale: %d%%", math.floor(val * 100 + 0.5)))
+        end
+    end)
+    inspectorPanel.sliderScale = sliderScale
+
+    -- Alpha Slider
+    local labelAlpha = sliderBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    labelAlpha:SetPoint("TOPLEFT", labelScale, "BOTTOMLEFT", 0, -18)
+    labelAlpha:SetText("Alpha: 100%")
+    inspectorPanel.labelAlpha = labelAlpha
+
+    local sliderAlpha = CreateCleanSlider("GridLockAlphaSlider", sliderBox, 180, 16, 0.1, 1.0, 0.05)
+    sliderAlpha:SetPoint("LEFT", labelAlpha, "RIGHT", 12, 0)
+    sliderAlpha:SetScript("OnValueChanged", function(selfSlider, val)
+        if Dashboard.updating then return end
+        if Dashboard.currentFrameName then
+            val = GridLock.Utils.Round(val, 2)
+            local frame = _G[Dashboard.currentFrameName]
+            if frame and frame.SetAlpha then frame:SetAlpha(val) end
+            GridLock:SaveFrameAlpha(Dashboard.currentFrameName, val)
+            labelAlpha:SetText(string.format("Alpha: %d%%", math.floor(val * 100 + 0.5)))
+        end
+    end)
+    inspectorPanel.sliderAlpha = sliderAlpha
+
+    rightBox.inspectorPanel = inspectorPanel
+
     self.frame = f
+    self:UpdateCatButtons()
+    self:UpdateList()
+    self:UpdateInspector()
 
-    self:SelectCategory("all")
     return f
 end
 
--- Select category and update active pill highlight
-function Dashboard:SelectCategory(categoryKey)
-    self.selectedCategory = categoryKey or "all"
-
-    -- Highlight active category pill
-    for _, btn in ipairs(self.catButtons) do
-        local fontString = btn:GetFontString()
-        if btn.categoryKey == self.selectedCategory then
-            if fontString then
-                fontString:SetTextColor(1, 0.82, 0, 1) -- Gold highlight for active pill
-            end
-        else
-            if fontString then
-                fontString:SetTextColor(1, 1, 1, 1)
-            end
-        end
-    end
-
-    -- Reset scroll position whenever category pill changes
-    if self.frame and self.frame.leftBox and self.frame.leftBox.scrollFrame then
-        self.frame.leftBox.scrollFrame:SetVerticalScroll(0)
-    end
-
-    self:UpdateList()
-end
-
--- Create list item button for left panel registry
-function Dashboard:CreateButton(parent, index)
-    local btn = CreateFrame("Button", nil, parent)
-    btn:SetWidth(225)
-    btn:SetHeight(22)
-    btn:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-
-    local bg = btn:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetTexture("Interface\\Buttons\\WHITE8X8")
-    bg:SetVertexColor(0.12, 0.12, 0.15, 0.6)
-    btn.bg = bg
-
-    -- Status indicator badge
-    local badge = btn:CreateTexture(nil, "OVERLAY")
-    badge:SetWidth(10)
-    badge:SetHeight(10)
-    badge:SetPoint("LEFT", btn, "LEFT", 4, 0)
-    badge:SetTexture("Interface\\Buttons\\WHITE8X8")
-    btn.badge = badge
-
-    -- Name label
-    local name = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    name:SetPoint("LEFT", badge, "RIGHT", 4, 0)
-    name:SetJustifyH("LEFT")
-    name:SetWidth(110)
-    btn.nameText = name
-
-    -- Inline action edit button
-    local editBtn = CreateFrame("Button", nil, btn, "UIPanelButtonTemplate")
-    editBtn:SetWidth(34)
-    editBtn:SetHeight(18)
-    editBtn:SetPoint("RIGHT", btn, "RIGHT", -38, 0)
-    editBtn:SetText("Edit")
-    editBtn:SetScript("OnClick", function()
-        if btn.frameName then
-            Dashboard:SelectFrame(btn.frameName)
-        end
-    end)
-    btn.editBtn = editBtn
-
-    -- Inline action hide/show button
-    local hideBtn = CreateFrame("Button", nil, btn, "UIPanelButtonTemplate")
-    hideBtn:SetWidth(34)
-    hideBtn:SetHeight(18)
-    hideBtn:SetPoint("RIGHT", btn, "RIGHT", -2, 0)
-    hideBtn:SetText("Hide")
-    hideBtn:SetScript("OnClick", function()
-        if btn.frameName then
-            local Visibility = GridLock:GetModule("Visibility")
-            if Visibility then
-                Visibility:ToggleFrame(btn.frameName)
-                Dashboard:UpdateList()
-                if Dashboard.currentFrameName == btn.frameName then
-                    Dashboard:UpdateInspector()
-                end
-            end
-        end
-    end)
-    btn.hideBtn = hideBtn
-
-    btn:SetScript("OnClick", function()
-        if btn.frameName then
-            Dashboard:SelectFrame(btn.frameName)
-        end
-    end)
-
-    return btn
-end
-
--- Update frame registry list
-function Dashboard:UpdateList()
-    if not self.frame then return end
-
-    local scrollChild = self.frame.leftBox.scrollChild
-    local scrollFrame = self.frame.leftBox.scrollFrame
-    local search = string.lower(self.searchText or "")
-
-    local frames = {}
-    if GridLock.FrameData then
-        frames = GridLock.FrameData:GetFramesByCategory(self.selectedCategory)
-    end
-
-    local displayFrames = {}
-    for _, frameInfo in ipairs(frames) do
-        local matches = true
-
-        if search ~= "" then
-            local nMatch = string.find(string.lower(frameInfo.name), search, 1, true)
-            local dMatch = string.find(string.lower(frameInfo.displayName), search, 1, true)
-            matches = nMatch or dMatch
-        end
-
-        if matches then
-            table.insert(displayFrames, frameInfo)
-        end
-    end
-
-    local itemHeight = 24
-    local yOffset = 0
-    local Position = GridLock:GetModule("Position")
-    local Visibility = GridLock:GetModule("Visibility")
-
-    for i, frameInfo in ipairs(displayFrames) do
-        local btn = self.buttons[i]
-        if not btn then
-            btn = self:CreateButton(scrollChild, i)
-            self.buttons[i] = btn
-        end
-
-        btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
-        btn:Show()
-
-        btn.frameName = frameInfo.name
-        btn.nameText:SetText(frameInfo.displayName)
-
-        -- Status Badges:
-        -- Red badge: Frame hidden
-        -- Green badge: Frame position modified
-        -- Neutral badge: Default visible frame
-        if Visibility and Visibility:IsHidden(frameInfo.name) then
-            btn.badge:SetVertexColor(1, 0.2, 0.2, 1) -- Red badge
-            btn.hideBtn:SetText("Show")
-        elseif Position and Position:IsModified(frameInfo.name) then
-            btn.badge:SetVertexColor(0, 1, 0.5, 1) -- Green badge
-            btn.hideBtn:SetText("Hide")
-        else
-            btn.badge:SetVertexColor(0.5, 0.5, 0.5, 0.5) -- Neutral badge
-            btn.hideBtn:SetText("Hide")
-        end
-
-        yOffset = yOffset + itemHeight
-    end
-
-    for i = #displayFrames + 1, #self.buttons do
-        self.buttons[i]:Hide()
-    end
-
-    -- Calculate scrollChild height correctly so all items are visible without clipping
-    if scrollChild then
-        scrollChild:SetHeight(math.max(yOffset, 1))
-    end
-    if scrollFrame and scrollFrame.UpdateScrollChildRect then
-        scrollFrame:UpdateScrollChildRect()
-    end
-end
-
--- Select and inspect frame
-function Dashboard:SelectFrame(frameName)
-    local frame = _G[frameName]
-    if not frame then return end
-
-    if not self.frame then
-        self:CreateFrame()
-    end
-
-    local Mover = GridLock:GetModule("Mover")
-    if Mover then
-        Mover:DetachAll()
-        self.currentMover = Mover:AttachToFrame(frame)
-    end
-
-    self.currentFrame = frame
-    self.currentFrameName = frameName
-
-    local frameInfo = GridLock.FrameData and GridLock.FrameData:GetFrameInfo(frameName)
-    local catName = frameInfo and GridLock.FrameData:GetCategoryName(frameInfo.category) or "Misc"
-    local displayName = frameInfo and frameInfo.displayName or frameName
-    self.frame.rightBox.inspectorTitle:SetText(displayName .. " [" .. catName .. "]")
-
-    self:UpdateInspector()
-    self.frame:Show()
-end
-
--- Update Inspector inputs and sliders
-function Dashboard:UpdateInspector()
-    if not self.currentFrame or not self.frame then return end
-
-    self.updating = true
-    local rb = self.frame.rightBox
-
-    local x, y = GridLock.Utils.GetFrameCenter(self.currentFrame)
-    if x and y then
-        local roundedX = GridLock.Utils.Round(x, 0)
-        local roundedY = GridLock.Utils.Round(y, 0)
-        rb.xSlider:SetValue(roundedX)
-        rb.ySlider:SetValue(roundedY)
-        rb.xEdit:SetText(roundedX)
-        rb.yEdit:SetText(roundedY)
-    end
-
-    local scaleVal = self.currentFrame:GetScale() or 1.0
-    rb.scaleSlider:SetValue(GridLock.Utils.Round(scaleVal, 2))
-    rb.scaleEdit:SetText(math.floor(scaleVal * 100 + 0.5) .. "%")
-
-    local alphaVal = self.currentFrame:GetAlpha() or 1.0
-    rb.alphaSlider:SetValue(GridLock.Utils.Round(alphaVal, 2))
-    rb.alphaEdit:SetText(math.floor(alphaVal * 100 + 0.5) .. "%")
-
-    if self.currentFrameName then
-        local Visibility = GridLock:GetModule("Visibility")
-        if Visibility and Visibility:IsHidden(self.currentFrameName) then
-            rb.hideBtn:SetText("Show")
-        else
-            rb.hideBtn:SetText("Hide")
-        end
-
-        local Mover = GridLock:GetModule("Mover")
-        if Mover and Mover:GetMoverForFrame(self.currentFrameName) then
-            rb.detachBtn:SetText("Detach")
-        else
-            rb.detachBtn:SetText("Attach")
-        end
-    end
-
-    self.updating = false
-end
-
--- Handle position change from sliders/edits
-function Dashboard:OnPositionChanged()
-    if not self.currentFrame or not self.frame then return end
-
-    local rb = self.frame.rightBox
-    local x = rb.xSlider:GetValue()
-    local y = rb.ySlider:GetValue()
-
-    if GridLock.db and GridLock.db.snapEnabled then
-        local Snap = GridLock:GetModule("Snap")
-        if Snap then
-            x, y = Snap:CalculateSnappedPosition(x, y, GridLock.db.gridSize)
-        end
-    end
-
-    rb.xEdit:SetText(GridLock.Utils.Round(x, 0))
-    rb.yEdit:SetText(GridLock.Utils.Round(y, 0))
-
-    local scale = self.currentFrame:GetEffectiveScale()
-    local clearFunc = self.currentFrame.GridLockOriginalClearAllPoints or self.currentFrame.ClearAllPoints
-    local setFunc = self.currentFrame.GridLockOriginalSetPoint or self.currentFrame.SetPoint
-
-    clearFunc(self.currentFrame)
-    setFunc(self.currentFrame, "CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
-
-    if self.currentMover then
-        local Mover = GridLock:GetModule("Mover")
-        if Mover then Mover:UpdateMoverPosition(self.currentMover) end
-    end
-end
-
--- Handle scale change
-function Dashboard:OnScaleChanged(val)
-    if not self.currentFrame or not self.frame then return end
-
-    val = math.min(2.0, math.max(0.5, val))
-    self.currentFrame:SetScale(val)
-
-    GridLock:SaveFrameScale(self.currentFrameName, val)
-
-    if self.currentMover then
-        local Mover = GridLock:GetModule("Mover")
-        if Mover then Mover:UpdateMoverPosition(self.currentMover) end
-    end
-end
-
--- Handle alpha change
-function Dashboard:OnAlphaChanged(val)
-    if not self.currentFrame or not self.frame then return end
-
-    val = math.min(1.0, math.max(0.0, val))
-    self.currentFrame:SetAlpha(val)
-
-    GridLock:SaveFrameAlpha(self.currentFrameName, val)
-end
-
--- Nudge position by dx, dy
-function Dashboard:Nudge(dx, dy)
-    if not self.currentFrameName then return end
-
-    local Mover = GridLock:GetModule("Mover")
-    if Mover then
-        Mover:NudgeFrame(self.currentFrameName, dx, dy)
-        self:UpdateInspector()
-    end
-end
-
--- Reset selected frame
-function Dashboard:ResetCurrentFrame()
-    if not self.currentFrameName then return end
-
-    local Position = GridLock:GetModule("Position")
-    if Position then
-        Position:ResetPosition(self.currentFrameName)
-    end
-
-    local Mover = GridLock:GetModule("Mover")
-    if Mover then
-        Mover:DetachFromFrame(self.currentFrameName)
-    end
-
-    self:UpdateInspector()
-    self:UpdateList()
-end
-
--- Show Dashboard
+-- Show Master Dashboard
 function Dashboard:Show()
-    if not self.frame then
-        self:CreateFrame()
-    end
-    self.frame:Show()
+    local f = self:CreateFrame()
+    f:Show()
     self:UpdateList()
+    self:UpdateInspector()
 end
 
--- Hide Dashboard
+-- Hide Master Dashboard
 function Dashboard:Hide()
     if self.frame then
         self.frame:Hide()
     end
-
-    if self.currentFrameName and self.currentFrame then
-        local Position = GridLock:GetModule("Position")
-        if Position then
-            Position:SavePosition(self.currentFrameName, self.currentFrame)
-        end
-    end
 end
 
--- Toggle Dashboard
+-- Toggle Master Dashboard
 function Dashboard:Toggle()
     if self.frame and self.frame:IsShown() then
         self:Hide()
     else
         self:Show()
     end
+end
+
+-- Update Category Tab Highlights
+function Dashboard:UpdateCatButtons()
+    for key, btn in pairs(self.catButtons) do
+        if key == self.selectedCategory then
+            btn:LockHighlight()
+        else
+            btn:UnlockHighlight()
+        end
+    end
+end
+
+-- Select a Frame in Inspector
+function Dashboard:SelectFrame(frameName)
+    self.currentFrameName = frameName
+    self.currentFrame = frameName and _G[frameName]
+    self:UpdateInspector()
+    self:UpdateList()
+end
+
+-- Update Inspector Pane Controls
+function Dashboard:UpdateInspector()
+    if not self.frame then return end
+
+    self.updating = true
+    local rightBox = self.frame.rightBox or self.frame
+    local inspector = rightBox.inspectorPanel
+    local empty = rightBox.emptyPanel
+
+    if not self.currentFrameName or not self.currentFrame then
+        if inspector then inspector:Hide() end
+        if empty then empty:Show() end
+        self.updating = false
+        return
+    end
+
+    if empty then empty:Hide() end
+    if inspector then inspector:Show() end
+
+    local frameName = self.currentFrameName
+    local frame = self.currentFrame
+
+    -- Display Title
+    local displayName = frameName
+    local frameInfo = GridLock.FrameData and GridLock.FrameData:GetFrameInfo(frameName)
+    if frameInfo then displayName = frameInfo.displayName end
+    inspector.frameTitle:SetText("|cFF00CCFF" .. displayName .. "|r")
+
+    -- Status Badges
+    local Visibility = GridLock:GetModule("Visibility")
+    local isHidden = Visibility and Visibility:IsHidden(frameName)
+    local isSaved = GridLock:GetFramePosition(frameName) ~= nil
+
+    if isHidden then
+        inspector.statusBadge:SetText("|cFFFF4444[HIDDEN]|r")
+        inspector.btnVis:SetText("Show Frame")
+    elseif isSaved then
+        inspector.statusBadge:SetText("|cFF00FF99[MODIFIED]|r")
+        inspector.btnVis:SetText("Toggle Hide")
+    else
+        inspector.statusBadge:SetText("|cFF888888[DEFAULT]|r")
+        inspector.btnVis:SetText("Toggle Hide")
+    end
+
+    -- X and Y Positions
+    local x, y = GridLock.Utils.GetFrameCenter(frame)
+    if x and y then
+        inspector.editX:SetText(tostring(math.floor(x + 0.5)))
+        inspector.editY:SetText(tostring(math.floor(y + 0.5)))
+    else
+        inspector.editX:SetText("")
+        inspector.editY:SetText("")
+    end
+
+    -- Scale & Alpha
+    local scale = frame.GetScale and frame:GetScale() or 1.0
+    local alpha = frame.GetAlpha and frame:GetAlpha() or 1.0
+
+    inspector.sliderScale:SetValue(scale)
+    inspector.labelScale:SetText(string.format("Scale: %d%%", math.floor(scale * 100 + 0.5)))
+
+    inspector.sliderAlpha:SetValue(alpha)
+    inspector.labelAlpha:SetText(string.format("Alpha: %d%%", math.floor(alpha * 100 + 0.5)))
+
+    self.updating = false
+end
+
+-- Update Left Scrollable Frame List
+function Dashboard:UpdateList()
+    if not self.frame then return end
+
+    local scrollChild = self.frame.leftBox and self.frame.leftBox.scrollChild
+    if not scrollChild then return end
+
+    -- Hide existing item buttons
+    for _, btn in ipairs(self.buttons) do
+        btn:Hide()
+    end
+
+    -- Fetch frames by category
+    local frames = GridLock.FrameData and GridLock.FrameData:GetFramesByCategory(self.selectedCategory) or {}
+    local filtered = {}
+
+    local filterText = (self.searchText or ""):lower():gsub("%s+", "")
+    for _, info in ipairs(frames) do
+        local nameMatch = info.name:lower():find(filterText, 1, true)
+        local displayMatch = info.displayName:lower():find(filterText, 1, true)
+        if filterText == "" or nameMatch or displayMatch then
+            table.insert(filtered, info)
+        end
+    end
+
+    local Visibility = GridLock:GetModule("Visibility")
+    local rowHeight = 24
+    local itemIndex = 0
+
+    for _, info in ipairs(filtered) do
+        itemIndex = itemIndex + 1
+        local btn = self.buttons[itemIndex]
+
+        if not btn then
+            btn = CreateFrame("Button", nil, scrollChild, "UIPanelButtonTemplate")
+            btn:SetWidth(215)
+            btn:SetHeight(rowHeight)
+
+            local statusTxt = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            statusTxt:SetPoint("LEFT", btn, "LEFT", 6, 0)
+            btn.statusTxt = statusTxt
+
+            local nameTxt = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            nameTxt:SetPoint("LEFT", statusTxt, "RIGHT", 6, 0)
+            btn.nameTxt = nameTxt
+
+            btn:SetScript("OnClick", function(selfBtn)
+                if selfBtn.frameName then
+                    Dashboard:SelectFrame(selfBtn.frameName)
+                end
+            end)
+
+            self.buttons[itemIndex] = btn
+        end
+
+        btn.frameName = info.name
+        btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -(itemIndex - 1) * rowHeight)
+
+        -- Status Indicator
+        local isHidden = Visibility and Visibility:IsHidden(info.name)
+        local isSaved = GridLock:GetFramePosition(info.name) ~= nil
+
+        if isHidden then
+            btn.statusTxt:SetText("|cFFFF4444[HID]|r")
+        elseif isSaved then
+            btn.statusTxt:SetText("|cFF00FF99[MOD]|r")
+        else
+            btn.statusTxt:SetText("|cFF666666[VIS]|r")
+        end
+
+        btn.nameTxt:SetText(info.displayName)
+
+        -- Selection highlight
+        if Dashboard.currentFrameName == info.name then
+            btn:LockHighlight()
+        else
+            btn:UnlockHighlight()
+        end
+
+        btn:Show()
+    end
+
+    scrollChild:SetHeight(math.max(itemIndex * rowHeight, 1))
 end
