@@ -576,17 +576,72 @@ function Snap:GetSnappedPosition(x, y, frameWidth, frameHeight, frame)
         end
     end
 
-    -- 4. Grid Snap (Threshold-gated: only snap if within snapThreshold distance!)
+    -- 4. Dynamic Grid Snap (Edge + Center alignment across all grid sizes)
     if not snappedX or not snappedY then
-        local gridSize = GridLock.db.gridSize or 32
-        local gridX, gridY = self:CalculateSnappedPosition(x, y, gridSize)
-        if not snappedX and math.abs(x - gridX) <= threshold then
-            finalX = gridX
-            snappedX = true
+        local gridSize = (GridLock.db and GridLock.db.gridSize) or 32
+        local gridSnapThreshold = math.min(gridSize / 2, math.max(6, math.floor(gridSize * 0.35)))
+        local screenW, screenH = GridLock.Utils.GetScreenSize()
+
+        local halfW = (frameWidth or 0) / 2
+        local halfH = (frameHeight or 0) / 2
+
+        local dragLeft = x - halfW
+        local dragRight = x + halfW
+        local dragBottom = y - halfH
+        local dragTop = y + halfH
+
+        -- X Axis Grid Snap Candidates: Center, Left Edge, Right Edge
+        if not snappedX then
+            local candidatesX = {
+                { snapX = GridLock.Utils.SnapToGrid(x, gridSize), lineX = GridLock.Utils.SnapToGrid(x, gridSize), delta = math.abs(x - GridLock.Utils.SnapToGrid(x, gridSize)) },
+                { snapX = GridLock.Utils.SnapToGrid(dragLeft, gridSize) + halfW, lineX = GridLock.Utils.SnapToGrid(dragLeft, gridSize), delta = math.abs(dragLeft - GridLock.Utils.SnapToGrid(dragLeft, gridSize)) },
+                { snapX = GridLock.Utils.SnapToGrid(dragRight, gridSize) - halfW, lineX = GridLock.Utils.SnapToGrid(dragRight, gridSize), delta = math.abs(dragRight - GridLock.Utils.SnapToGrid(dragRight, gridSize)) },
+            }
+
+            local bestX = nil
+            local bestDeltaX = gridSnapThreshold + 1
+            local bestLineX = nil
+
+            for _, cand in ipairs(candidatesX) do
+                if cand.delta <= gridSnapThreshold and cand.delta < bestDeltaX then
+                    bestDeltaX = cand.delta
+                    bestX = cand.snapX
+                    bestLineX = cand.lineX
+                end
+            end
+
+            if bestX then
+                finalX = bestX
+                snappedX = true
+                table.insert(activeSnaps, { lineType = "vertical", x = bestLineX, yMin = 0, yMax = screenH, colorType = "grid" })
+            end
         end
-        if not snappedY and math.abs(y - gridY) <= threshold then
-            finalY = gridY
-            snappedY = true
+
+        -- Y Axis Grid Snap Candidates: Center, Bottom Edge, Top Edge
+        if not snappedY then
+            local candidatesY = {
+                { snapY = GridLock.Utils.SnapToGrid(y, gridSize), lineY = GridLock.Utils.SnapToGrid(y, gridSize), delta = math.abs(y - GridLock.Utils.SnapToGrid(y, gridSize)) },
+                { snapY = GridLock.Utils.SnapToGrid(dragBottom, gridSize) + halfH, lineY = GridLock.Utils.SnapToGrid(dragBottom, gridSize), delta = math.abs(dragBottom - GridLock.Utils.SnapToGrid(dragBottom, gridSize)) },
+                { snapY = GridLock.Utils.SnapToGrid(dragTop, gridSize) - halfH, lineY = GridLock.Utils.SnapToGrid(dragTop, gridSize), delta = math.abs(dragTop - GridLock.Utils.SnapToGrid(dragTop, gridSize)) },
+            }
+
+            local bestY = nil
+            local bestDeltaY = gridSnapThreshold + 1
+            local bestLineY = nil
+
+            for _, cand in ipairs(candidatesY) do
+                if cand.delta <= gridSnapThreshold and cand.delta < bestDeltaY then
+                    bestDeltaY = cand.delta
+                    bestY = cand.snapY
+                    bestLineY = cand.lineY
+                end
+            end
+
+            if bestY then
+                finalY = bestY
+                snappedY = true
+                table.insert(activeSnaps, { lineType = "horizontal", y = bestLineY, xMin = 0, xMax = screenW, colorType = "grid" })
+            end
         end
     end
 
