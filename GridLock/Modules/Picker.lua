@@ -54,6 +54,60 @@ function Picker:IsGridLockFrame(frame)
     return false
 end
 
+-- Find UI element beneath cursor using MouseIsOver (works even when clickCatcher is visible)
+function Picker:GetFrameUnderCursor()
+    -- 1. Check known Blizzard and Addon frames registered in FrameData
+    if GridLock.FrameData and GridLock.FrameData.frames then
+        for cat, frameList in pairs(GridLock.FrameData.frames) do
+            for _, info in ipairs(frameList) do
+                local f = _G[info.name]
+                if f and f:IsShown() and not self:IsGridLockFrame(f) and MouseIsOver(f) then
+                    return f, info.name
+                end
+            end
+        end
+    end
+
+    -- 2. Check active Mover handles
+    local Mover = GridLock:GetModule("Mover")
+    if Mover and Mover.movers then
+        for frameName, mover in pairs(Mover.movers) do
+            if mover:IsShown() and MouseIsOver(mover) then
+                local target = mover.targetFrame or _G[frameName]
+                if target then
+                    return target, frameName
+                end
+            end
+        end
+    end
+
+    -- 3. Fallback: inspect mouse focus directly if mouse is over an element
+    local focus = GetMouseFocus()
+    if focus and focus ~= UIParent and focus ~= WorldFrame and not self:IsGridLockFrame(focus) then
+        local curr = focus
+        local name = focus:GetName()
+        while curr and curr ~= UIParent and curr ~= WorldFrame do
+            local currName = curr:GetName()
+            if currName and GridLock.FrameData and GridLock.FrameData:IsKnownFrame(currName) then
+                return curr, currName
+            end
+            if currName and not name then
+                name = currName
+            end
+            if curr:GetParent() and curr:GetParent() ~= UIParent then
+                curr = curr:GetParent()
+            else
+                break
+            end
+        end
+        if name and not self:IsGridLockFrame(focus) then
+            return focus, name
+        end
+    end
+
+    return nil, nil
+end
+
 -- Start picking mode
 function Picker:Start()
     if self.active then return end
@@ -68,30 +122,31 @@ function Picker:Start()
     if not self.clickCatcher then
         local catcher = CreateFrame("Button", "GridLockPickerCatcher", UIParent)
         catcher:SetAllPoints(UIParent)
-        catcher:SetFrameStrata("TOOLTIP")
-        catcher:SetFrameLevel(998)
+        catcher:SetFrameStrata("FULLSCREEN_DIALOG")
+        catcher:SetFrameLevel(2000)
         catcher:EnableMouse(true)
-        catcher:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        catcher:RegisterForClicks("AnyUp")
 
         catcher:SetScript("OnClick", function(self, button)
-            -- 0.25s debounce to prevent activation click from deactivating immediately
-            if (GetTime() - (Picker.startTime or 0)) < 0.25 then
+            -- 0.20s debounce to prevent activation click from triggering picker
+            if (GetTime() - (Picker.startTime or 0)) < 0.20 then
                 return
             end
 
             if button == "RightButton" then
                 Picker:Stop()
             else
-                local target = Picker.currentFocus
+                local target, frameName = Picker:GetFrameUnderCursor()
                 Picker:Stop()
-                if target and target:GetName() then
-                    local frameName = target:GetName()
+
+                if target and frameName then
                     local Mover = GridLock:GetModule("Mover")
                     if Mover then
                         Mover:AttachToFrame(target)
                     end
                     local Dashboard = GridLock:GetModule("Dashboard")
                     if Dashboard then
+                        Dashboard:Show()
                         Dashboard:SelectFrame(frameName)
                     end
                 end
@@ -149,64 +204,33 @@ function Picker:Toggle()
     end
 end
 
--- Mouse trace update loop (bypasses GridLockPickerCatcher to find target frame under cursor)
+-- Mouse trace update loop
 function Picker:OnUpdate()
-    if self.clickCatcher then
-        self.clickCatcher:Hide()
-    end
+    local focus, name = self:GetFrameUnderCursor()
 
-    local focus = GetMouseFocus()
+    if focus and name then
+        self.currentFocus = focus
 
-    if self.clickCatcher then
-        self.clickCatcher:Show()
-    end
+        local scale = focus:GetEffectiveScale()
+        local w = (focus:GetWidth() or 0) * scale
+        local h = (focus:GetHeight() or 0) * scale
+        local x, y = GridLock.Utils.GetFrameCenter(focus)
 
-    if focus and focus ~= UIParent and focus ~= WorldFrame then
-        local name = focus:GetName()
+        if x and y then
+            self.highlightFrame:SetWidth(math.max(w, 20))
+            self.highlightFrame:SetHeight(math.max(h, 20))
+            self.highlightFrame:ClearAllPoints()
+            self.highlightFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
 
-        -- Trace parent frames if unnamed or to resolve child elements to known main frames
-        local curr = focus
-        while curr and curr ~= UIParent and curr ~= WorldFrame do
-            local currName = curr:GetName()
-            if currName and GridLock.FrameData and GridLock.FrameData:IsKnownFrame(currName) then
-                focus = curr
-                name = currName
-                break
+            local displayName = name
+            local frameInfo = GridLock.FrameData and GridLock.FrameData:GetFrameInfo(name)
+            if frameInfo then
+                displayName = frameInfo.displayName .. " (" .. name .. ")"
             end
-            if currName and not name then
-                name = currName
-            end
-            if curr:GetParent() and curr:GetParent() ~= UIParent then
-                curr = curr:GetParent()
-            else
-                break
-            end
-        end
 
-        if name and not self:IsGridLockFrame(focus) then
-            self.currentFocus = focus
-
-            local scale = focus:GetEffectiveScale()
-            local w = focus:GetWidth() * scale
-            local h = focus:GetHeight() * scale
-            local x, y = GridLock.Utils.GetFrameCenter(focus)
-
-            if x and y then
-                self.highlightFrame:SetWidth(math.max(w, 20))
-                self.highlightFrame:SetHeight(math.max(h, 20))
-                self.highlightFrame:ClearAllPoints()
-                self.highlightFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
-
-                local displayName = name
-                local frameInfo = GridLock.FrameData and GridLock.FrameData:GetFrameInfo(name)
-                if frameInfo then
-                    displayName = frameInfo.displayName .. " (" .. name .. ")"
-                end
-
-                self.highlightFrame.label:SetText(displayName)
-                self.highlightFrame:Show()
-                return
-            end
+            self.highlightFrame.label:SetText(displayName)
+            self.highlightFrame:Show()
+            return
         end
     end
 
