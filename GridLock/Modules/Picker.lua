@@ -9,6 +9,7 @@ GridLock:RegisterModule("Picker", Picker)
 Picker.active = false
 Picker.highlightFrame = nil
 Picker.currentFocus = nil
+Picker.startTime = 0
 
 function Picker:OnInitialize()
     self:CreateHighlightFrame()
@@ -57,6 +58,7 @@ end
 function Picker:Start()
     if self.active then return end
     self.active = true
+    self.startTime = GetTime()
 
     if not self.highlightFrame then
         self:CreateHighlightFrame()
@@ -69,9 +71,14 @@ function Picker:Start()
         catcher:SetFrameStrata("TOOLTIP")
         catcher:SetFrameLevel(998)
         catcher:EnableMouse(true)
-        catcher:RegisterForClicks("LeftButtonDown", "RightButtonDown")
+        catcher:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
         catcher:SetScript("OnClick", function(self, button)
+            -- 0.25s debounce to prevent activation click from deactivating immediately
+            if (GetTime() - (Picker.startTime or 0)) < 0.25 then
+                return
+            end
+
             if button == "RightButton" then
                 Picker:Stop()
             else
@@ -142,16 +149,16 @@ function Picker:Toggle()
     end
 end
 
--- Mouse trace update loop (bypasses GridLockPickerCatcher to find target frame)
+-- Mouse trace update loop (bypasses GridLockPickerCatcher to find target frame under cursor)
 function Picker:OnUpdate()
     if self.clickCatcher then
-        self.clickCatcher:EnableMouse(false)
+        self.clickCatcher:Hide()
     end
 
     local focus = GetMouseFocus()
 
     if self.clickCatcher then
-        self.clickCatcher:EnableMouse(true)
+        self.clickCatcher:Show()
     end
 
     if focus and focus ~= UIParent and focus ~= WorldFrame then
@@ -206,4 +213,3 @@ function Picker:OnUpdate()
     self.currentFocus = nil
     self.highlightFrame:Hide()
 end
-
