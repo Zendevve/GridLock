@@ -1,10 +1,17 @@
 -- GridLock Dashboard Module
 -- Ergonomic Dark-Glassmorphic Master Control Panel for WoW 3.3.5a
 
-local GridLock = select(2, ...)
+local addonName, GridLock = ...
+GridLock = GridLock or _G.GridLock or {}
+_G.GridLock = GridLock
 
 local Dashboard = {}
-GridLock:RegisterModule("Dashboard", Dashboard)
+if type(GridLock.RegisterModule) == "function" then
+    GridLock:RegisterModule("Dashboard", Dashboard)
+else
+    GridLock.modules = GridLock.modules or {}
+    GridLock.modules["Dashboard"] = Dashboard
+end
 
 Dashboard.frame = nil
 Dashboard.currentFrame = nil
@@ -194,6 +201,7 @@ function Dashboard:CreateFrame()
     rightBox:SetWidth(354)
     rightBox:SetHeight(404)
     rightBox:SetFrameLevel(f:GetFrameLevel() + 5)
+    f.rightBox = rightBox
 
     rightBox:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -456,6 +464,139 @@ function Dashboard:CreateFrame()
     end)
     inspectorPanel.sliderAlpha = sliderAlpha
 
+    -- ACTION BAR CUSTOMIZER CARD (Shown when selected frame is an Action Bar)
+    local barBox = CreateFrame("Frame", nil, inspectorPanel)
+    barBox:SetPoint("TOPLEFT", sliderBox, "BOTTOMLEFT", 0, -8)
+    barBox:SetWidth(330)
+    barBox:SetHeight(130)
+    barBox:Hide()
+
+    barBox:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        tile = false, tileSize = 0, edgeSize = 1,
+        insets = { left = 0, right = 0, top = 0, bottom = 0 }
+    })
+    barBox:SetBackdropColor(0.04, 0.05, 0.08, 0.9)
+    barBox:SetBackdropBorderColor(0.0, 0.8, 1.0, 0.8)
+
+    local barTitle = barBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    barTitle:SetPoint("TOPLEFT", barBox, "TOPLEFT", 8, -6)
+    barTitle:SetText("|cFF00CCFFACTION BAR CUSTOMIZER|r")
+
+    -- Rows & Cols Steppers
+    local labelRows = barBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    labelRows:SetPoint("TOPLEFT", barTitle, "BOTTOMLEFT", 0, -10)
+    labelRows:SetText("Rows: 1")
+    inspectorPanel.labelRows = labelRows
+
+    local btnRowDec = CreateFrame("Button", nil, barBox, "UIPanelButtonTemplate")
+    btnRowDec:SetWidth(20) btnRowDec:SetHeight(20)
+    btnRowDec:SetPoint("LEFT", labelRows, "RIGHT", 6, 0)
+    btnRowDec:SetText("<")
+    btnRowDec:SetScript("OnClick", function()
+        if Dashboard.currentFrameName then
+            local BarLayout = GridLock:GetModule("BarLayout")
+            local f = _G[Dashboard.currentFrameName]
+            local r = math.max(1, (f and f.rows or 1) - 1)
+            local c = (f and f.cols or 12)
+            if BarLayout then BarLayout:SetBarLayout(f, r, c, f and f.spacing or 2, f and f.padding or 2) end
+            Dashboard:UpdateInspector()
+        end
+    end)
+
+    local btnRowInc = CreateFrame("Button", nil, barBox, "UIPanelButtonTemplate")
+    btnRowInc:SetWidth(20) btnRowInc:SetHeight(20)
+    btnRowInc:SetPoint("LEFT", btnRowDec, "RIGHT", 2, 0)
+    btnRowInc:SetText(">")
+    btnRowInc:SetScript("OnClick", function()
+        if Dashboard.currentFrameName then
+            local BarLayout = GridLock:GetModule("BarLayout")
+            local f = _G[Dashboard.currentFrameName]
+            local r = math.min(12, (f and f.rows or 1) + 1)
+            local c = (f and f.cols or 12)
+            if BarLayout then BarLayout:SetBarLayout(f, r, c, f and f.spacing or 2, f and f.padding or 2) end
+            Dashboard:UpdateInspector()
+        end
+    end)
+
+    -- Checkbutton: Icon Zoom
+    local cbZoom = CreateFrame("CheckButton", "GridLockCBZoom", barBox, "UICheckButtonTemplate")
+    cbZoom:SetWidth(20) cbZoom:SetHeight(20)
+    cbZoom:SetPoint("LEFT", btnRowInc, "RIGHT", 14, 0)
+    local cbZoomText = cbZoom:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    cbZoomText:SetPoint("LEFT", cbZoom, "RIGHT", 2, 0)
+    cbZoomText:SetText("Icon Zoom")
+    cbZoom:SetScript("OnClick", function(selfCB)
+        if Dashboard.currentFrameName then
+            GridLock:SetBarIconZoom(_G[Dashboard.currentFrameName], selfCB:GetChecked())
+        end
+    end)
+    inspectorPanel.cbZoom = cbZoom
+
+    -- Checkbutton: Click-Through
+    local cbClick = CreateFrame("CheckButton", "GridLockCBClick", barBox, "UICheckButtonTemplate")
+    cbClick:SetWidth(20) cbClick:SetHeight(20)
+    cbClick:SetPoint("LEFT", cbZoomText, "RIGHT", 10, 0)
+    local cbClickText = cbClick:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    cbClickText:SetPoint("LEFT", cbClick, "RIGHT", 2, 0)
+    cbClickText:SetText("Click-Thru")
+    cbClick:SetScript("OnClick", function(selfCB)
+        if Dashboard.currentFrameName then
+            GridLock:SetBarClickThrough(_G[Dashboard.currentFrameName], selfCB:GetChecked())
+        end
+    end)
+    inspectorPanel.cbClick = cbClick
+
+    -- Custom Paging Driver EditBox
+    local labelDriver = barBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    labelDriver:SetPoint("TOPLEFT", labelRows, "BOTTOMLEFT", 0, -14)
+    labelDriver:SetText("Paging Driver:")
+
+    local editDriver = CreateFrame("EditBox", nil, barBox, "InputBoxTemplate")
+    editDriver:SetWidth(180) editDriver:SetHeight(20)
+    editDriver:SetPoint("LEFT", labelDriver, "RIGHT", 6, 0)
+    editDriver:SetAutoFocus(false)
+    editDriver:SetScript("OnEnterPressed", function(selfEdit)
+        selfEdit:ClearFocus()
+        if Dashboard.currentFrameName then
+            GridLock:SetCustomStateDriver(Dashboard.currentFrameName, selfEdit:GetText())
+        end
+    end)
+    inspectorPanel.editDriver = editDriver
+
+    -- Presets Label & Quick Buttons
+    local btnPresetWr = CreateFrame("Button", nil, barBox, "UIPanelButtonTemplate")
+    btnPresetWr:SetWidth(50) btnPresetWr:SetHeight(18)
+    btnPresetWr:SetPoint("TOPLEFT", labelDriver, "BOTTOMLEFT", 0, -8)
+    btnPresetWr:SetText("Warrior")
+    btnPresetWr:SetScript("OnClick", function()
+        local d = GridLock:GetClassStanceDriver("WARRIOR")
+        editDriver:SetText(d)
+        if Dashboard.currentFrameName then GridLock:SetCustomStateDriver(Dashboard.currentFrameName, d) end
+    end)
+
+    local btnPresetDr = CreateFrame("Button", nil, barBox, "UIPanelButtonTemplate")
+    btnPresetDr:SetWidth(50) btnPresetDr:SetHeight(18)
+    btnPresetDr:SetPoint("LEFT", btnPresetWr, "RIGHT", 4, 0)
+    btnPresetDr:SetText("Druid")
+    btnPresetDr:SetScript("OnClick", function()
+        local d = GridLock:GetClassStanceDriver("DRUID")
+        editDriver:SetText(d)
+        if Dashboard.currentFrameName then GridLock:SetCustomStateDriver(Dashboard.currentFrameName, d) end
+    end)
+
+    local btnPresetRg = CreateFrame("Button", nil, barBox, "UIPanelButtonTemplate")
+    btnPresetRg:SetWidth(50) btnPresetRg:SetHeight(18)
+    btnPresetRg:SetPoint("LEFT", btnPresetDr, "RIGHT", 4, 0)
+    btnPresetRg:SetText("Rogue")
+    btnPresetRg:SetScript("OnClick", function()
+        local d = GridLock:GetClassStanceDriver("ROGUE")
+        editDriver:SetText(d)
+        if Dashboard.currentFrameName then GridLock:SetCustomStateDriver(Dashboard.currentFrameName, d) end
+    end)
+
+    inspectorPanel.barBox = barBox
     rightBox.inspectorPanel = inspectorPanel
 
     self.frame = f
@@ -572,6 +713,19 @@ function Dashboard:UpdateInspector()
 
     inspector.sliderAlpha:SetValue(alpha)
     inspector.labelAlpha:SetText(string.format("Alpha: %d%%", math.floor(alpha * 100 + 0.5)))
+
+    -- Action Bar Customizer Card Visibility & Controls
+    local isActionBar = (frameInfo and frameInfo.category == "bars") or frameName:find("ActionBar") or frameName:find("MainMenuBar") or frameName:find("MultiBar")
+    if isActionBar and inspector.barBox then
+        inspector.barBox:Show()
+        local rows = frame.rows or 1
+        inspector.labelRows:SetText(string.format("Rows: %d", rows))
+        if inspector.cbZoom then inspector.cbZoom:SetChecked(not not frame.iconZoomed) end
+        if inspector.cbClick then inspector.cbClick:SetChecked(not not frame.clickThrough) end
+        if inspector.editDriver then inspector.editDriver:SetText(frame.customStateDriver or "") end
+    elseif inspector.barBox then
+        inspector.barBox:Hide()
+    end
 
     self.updating = false
 end

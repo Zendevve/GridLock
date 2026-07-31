@@ -343,4 +343,35 @@ function GridLock:SetBarNormalTextureVisibility(barFrame, visible)
     end
 end
 
+-- 10. Set Bar Custom Border Color
+function GridLock:SetBarBorderColor(barFrame, r, g, b, a)
+    if not barFrame then return end
+    r, g, b, a = r or 1, g or 1, b or 1, a or 1
+    barFrame.borderColor = { r = r, g = g, b = b, a = a }
+
+    local buttons = BarLayout:GetBarButtons(barFrame)
+    for _, btn in ipairs(buttons) do
+        local btnName = btn.GetName and btn:GetName()
+        local border = (btnName and _G[btnName .. "Border"]) or btn.Border or btn.border
+        if border and border.SetVertexColor then
+            border:SetVertexColor(r, g, b, a)
+        elseif btn.SetBackdropBorderColor then
+            btn:SetBackdropBorderColor(r, g, b, a)
+        end
+    end
+end
+
+-- 11. Register Bar with Masque / ButtonFacade (if present)
+function GridLock:RegisterMasqueGroup(barFrame, groupName)
+    if not barFrame then return end
+    local LibMasque = _G.LibStub and _G.LibStub("Masque", true) or _G.LibStub and _G.LibStub("ButtonFacade", true)
+    if not LibMasque then return end
+
+    local group = LibMasque:Group("GridLock", groupName or (barFrame.GetName and barFrame:GetName()) or "ActionBar")
+    local buttons = BarLayout:GetBarButtons(barFrame)
+    for _, btn in ipairs(buttons) do
+        group:AddButton(btn)
+    end
+end
+
 return BarLayout

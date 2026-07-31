@@ -77,7 +77,8 @@ end
 
 -- Get frame position data
 function GridLock:GetFramePosition(frameName)
-    return self.db.frames[frameName]
+    self.db = self.db or { frames = {}, hiddenFrames = {} }
+    return self.db.frames and self.db.frames[frameName]
 end
 
 -- Save frame position data

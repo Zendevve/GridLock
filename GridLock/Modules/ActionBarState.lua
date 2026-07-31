@@ -257,4 +257,24 @@ function GridLock:UpdateBarPaging(barID, profileSettings)
     return driverString, barHeader
 end
 
+--- Set Custom State Driver string for a bar frame directly
+-- @param barFrame (frame or string) e.g., "MainMenuBar" or "GridLockActionBar1"
+-- @param customDriver (string) custom macro condition string e.g. "[mod:alt] 2; [bonusbar:1] 7"
+function GridLock:SetCustomStateDriver(barFrame, customDriver)
+    local frame = type(barFrame) == "string" and _G[barFrame] or barFrame
+    if not frame then return end
+
+    if _G.InCombatLockdown and _G.InCombatLockdown() then
+        GridLock:QueueCombatAction(function()
+            GridLock:SetCustomStateDriver(barFrame, customDriver)
+        end)
+        return
+    end
+
+    frame.customStateDriver = customDriver
+    if _G.RegisterStateDriver then
+        _G.RegisterStateDriver(frame, "page", customDriver or "")
+    end
+end
+
 return ActionBarState
