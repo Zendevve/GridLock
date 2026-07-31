@@ -151,28 +151,71 @@ function GridLock:ResetAllPositions()
     wipe(self.db.frames)
 end
 
--- Export configuration to string
-function GridLock:ExportConfig()
-    -- Simple serialization for now
+-- Export configuration to string (Base64 + Checksum Hash format)
+function GridLock:ExportConfig(rawFormat)
+    self.db = self.db or { frames = {} }
     local data = {}
     for name, pos in pairs(self.db.frames) do
         table.insert(data, string.format("%s:%s:%s:%s:%.2f:%.2f:%.2f:%.2f",
             name,
             pos.point,
-            pos.relativeTo,
+            pos.relativeTo or "UIParent",
             pos.relativePoint,
-            pos.x,
-            pos.y,
+            pos.x or 0,
+            pos.y or 0,
             pos.scale or 1.0,
             pos.alpha or 1.0
         ))
     end
-    return table.concat(data, "|")
+    local rawStr = table.concat(data, "|")
+    if rawFormat then
+        return rawStr
+    end
+    local b64 = GridLock.Utils and GridLock.Utils.Base64Encode(rawStr) or rawStr
+    local hash = GridLock.Utils and GridLock.Utils.CalculateHash(rawStr) or "00000000"
+    return "!GL1:" .. b64 .. ":#" .. hash
+end
+
+-- Validate and decode import string
+function GridLock:ValidateImportString(str)
+    if not str or type(str) ~= "string" or str == "" then
+        return false, nil, "Empty import string"
+    end
+    str = str:gsub("^%s+", ""):gsub("%s+$", "")
+
+    if str:find("^!GL1:") then
+        local b64, hash = str:match("^!GL1:(.-):#(.-)$")
+        if not b64 then
+            return false, nil, "Malformed export string header"
+        end
+        local rawStr = GridLock.Utils and GridLock.Utils.Base64Decode(b64) or b64
+        local calcHash = GridLock.Utils and GridLock.Utils.CalculateHash(rawStr) or "00000000"
+        if hash and hash ~= "" and calcHash ~= hash then
+            return false, nil, "Checksum validation failed"
+        end
+        return true, rawStr, nil
+    end
+
+    -- Legacy raw pipe format
+    if str:find(":") or str:find("|") then
+        return true, str, nil
+    end
+
+    return false, nil, "Invalid format"
 end
 
 -- Import configuration from string
 function GridLock:ImportConfig(str)
-    local parts = { strsplit("|", str) }
+    local ok, rawStr, err = self:ValidateImportString(str)
+    if not ok or not rawStr then
+        if GridLock.Utils then GridLock.Utils.Print("Import failed: %s", err or "Invalid format") end
+        return false, err
+    end
+
+    self.db = self.db or { frames = {} }
+    self.db.frames = self.db.frames or {}
+
+    local parts = { strsplit("|", rawStr) }
     for _, part in ipairs(parts) do
         local name, point, relTo, relPoint, x, y, scale, alpha = strsplit(":", part)
         if name and point then
@@ -187,5 +230,13 @@ function GridLock:ImportConfig(str)
             }
         end
     end
+
+    -- Apply imported frame positions
+    local Position = GridLock:GetModule("Position")
+    if Position and Position.ApplyAllSavedPositions then
+        Position:ApplyAllSavedPositions()
+    end
+    return true
 end
+
 

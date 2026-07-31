@@ -428,7 +428,10 @@ end
 
 -- Shorten key text for button display
 function Keybind:ShortenKeyText(key)
-    if not key then return "" end
+    if not key or key == "" then return "" end
+    if GridLock and GridLock.FormatHotkeyText then
+        return GridLock:FormatHotkeyText(key)
+    end
     local text = key
     text = text:gsub("SHIFT%-", "s")
     text = text:gsub("CTRL%-", "c")

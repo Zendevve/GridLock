@@ -1,10 +1,17 @@
 -- GridLock Grid Module
 -- Displays a configurable grid overlay for alignment
 
-local GridLock = select(2, ...)
+local addonName, GridLock = ...
+GridLock = GridLock or _G.GridLock or {}
+_G.GridLock = GridLock
 
 local Grid = {}
-GridLock:RegisterModule("Grid", Grid)
+if type(GridLock.RegisterModule) == "function" then
+    GridLock:RegisterModule("Grid", Grid)
+else
+    GridLock.modules = GridLock.modules or {}
+    GridLock.modules["Grid"] = Grid
+end
 
 -- Grid frame storage
 Grid.frame = nil
@@ -162,13 +169,36 @@ end
 -- Set grid size
 function Grid:SetSize(size)
     size = math.min(256, math.max(8, size))
-    GridLock.db.gridSize = size
+    if GridLock.db then
+        GridLock.db.gridSize = size
+    end
+    self:Update()
+end
+
+-- Get grid size
+function Grid:GetSize()
+    return GridLock.db and GridLock.db.gridSize or 32
+end
+
+-- Set grid line color
+function Grid:SetColor(r, g, b, a)
+    if GridLock.db then
+        GridLock.db.gridColor = { r = r or 0.5, g = g or 0.5, b = b or 0.5, a = a or 0.5 }
+    end
+    self:Update()
+end
+
+-- Set grid center/axis line color
+function Grid:SetCenterColor(r, g, b, a)
+    if GridLock.db then
+        GridLock.db.gridCenterColor = { r = r or 1.0, g = g or 0.0, b = b or 0.0, a = a or 0.5 }
+    end
     self:Update()
 end
 
 -- Cycle grid size (8 -> 16 -> 32 -> 64 -> 8)
 function Grid:CycleSize()
-    local current = GridLock.db and GridLock.db.gridSize or 32
+    local current = self:GetSize()
     local nextSize = 32
     if current == 8 then
         nextSize = 16
@@ -182,4 +212,14 @@ function Grid:CycleSize()
     self:SetSize(nextSize)
     return nextSize
 end
+
+-- Helper APIs on GridLock root
+function GridLock:ToggleGrid()
+    Grid:Toggle()
+end
+
+function GridLock:CycleGridSize()
+    return Grid:CycleSize()
+end
+
 

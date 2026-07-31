@@ -186,3 +186,78 @@ function Profile:GetProfiles()
     table.sort(list)
     return list
 end
+
+-- Export profile data to string (Base64 + Hash validation)
+function Profile:ExportConfig(profileName)
+    profileName = profileName or self.currentProfile or "Default"
+    self:InitDatabase()
+    local prof = GridLockDB.profiles[profileName]
+    if not prof then return "" end
+
+    local data = {}
+    if prof.frames then
+        for name, pos in pairs(prof.frames) do
+            table.insert(data, string.format("%s:%s:%s:%s:%.2f:%.2f:%.2f:%.2f",
+                name,
+                pos.point or "CENTER",
+                pos.relativeTo or "UIParent",
+                pos.relativePoint or "CENTER",
+                pos.x or 0,
+                pos.y or 0,
+                pos.scale or 1.0,
+                pos.alpha or 1.0
+            ))
+        end
+    end
+    local rawStr = table.concat(data, "|")
+    local b64 = GridLock.Utils and GridLock.Utils.Base64Encode(rawStr) or rawStr
+    local hash = GridLock.Utils and GridLock.Utils.CalculateHash(rawStr) or "00000000"
+    return "!GL1:" .. b64 .. ":#" .. hash
+end
+
+-- Import profile configuration from string
+function Profile:ImportConfig(importStr, targetProfileName)
+    if not importStr or importStr == "" then return false end
+    targetProfileName = targetProfileName or self.currentProfile or "Default"
+    
+    local ok, rawStr, err = GridLock:ValidateImportString(importStr)
+    if not ok or not rawStr then
+        if GridLock.Utils then GridLock.Utils.Print("Profile import failed: %s", err or "Invalid format") end
+        return false, err
+    end
+
+    self:InitDatabase()
+    if not GridLockDB.profiles[targetProfileName] then
+        self:CreateProfile(targetProfileName)
+    end
+
+    local profFrames = {}
+    local parts = { strsplit("|", rawStr) }
+    for _, part in ipairs(parts) do
+        local name, point, relTo, relPoint, x, y, scale, alpha = strsplit(":", part)
+        if name and point then
+            profFrames[name] = {
+                point = point,
+                relativeTo = relTo,
+                relativePoint = relPoint,
+                x = tonumber(x) or 0,
+                y = tonumber(y) or 0,
+                scale = tonumber(scale),
+                alpha = tonumber(alpha),
+            }
+        end
+    end
+
+    GridLockDB.profiles[targetProfileName].frames = profFrames
+    if self.currentProfile == targetProfileName then
+        GridLock.db.frames = profFrames
+        local Position = GridLock:GetModule("Position")
+        if Position and Position.ApplyAllSavedPositions then
+            Position:ApplyAllSavedPositions()
+        end
+    end
+
+    if GridLock.Utils then GridLock.Utils.Print("Successfully imported profile into '%s'", targetProfileName) end
+    return true
+end
+

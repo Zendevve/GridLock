@@ -7,6 +7,22 @@ _G.GridLock = GridLock
 GridLock.Utils = {}
 local Utils = GridLock.Utils
 
+-- WoW API compatibility fallback for standalone Lua test environments
+local unpack = unpack or table.unpack
+if not _G.strsplit then
+    _G.strsplit = function(delimiter, str)
+        if not str then return nil end
+        local t = {}
+        local lastPos = 1
+        for s, e in str:gmatch("()" .. delimiter .. "()") do
+            table.insert(t, str:sub(lastPos, s - 1))
+            lastPos = e
+        end
+        table.insert(t, str:sub(lastPos))
+        return unpack(t)
+    end
+end
+
 -- Table deep copy
 function Utils.DeepCopy(orig)
     local copy
@@ -193,3 +209,88 @@ function Utils.Debug(msg, ...)
     end
     DEFAULT_CHAT_FRAME:AddMessage("|cFFFF9900GridLock Debug:|r " .. msg)
 end
+
+-- Base64 & Checksum Hash Utilities for Profile Sharing
+local b64c = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local b64t = {}
+for i = 1, 64 do
+    local ch = b64c:sub(i, i)
+    b64t[i - 1] = ch
+    b64t[ch] = i - 1
+end
+
+function Utils.Base64Encode(data)
+    if not data or data == "" then return "" end
+    local bytes = { data:byte(1, #data) }
+    local len = #bytes
+    local out = {}
+    local i = 1
+    while i <= len do
+        local b1 = bytes[i] or 0
+        local b2 = bytes[i + 1] or 0
+        local b3 = bytes[i + 2] or 0
+        
+        local c1 = math.floor(b1 / 4)
+        local c2 = (b1 % 4) * 16 + math.floor(b2 / 16)
+        local c3 = (b2 % 16) * 4 + math.floor(b3 / 64)
+        local c4 = b3 % 64
+        
+        table.insert(out, b64c:sub(c1 + 1, c1 + 1))
+        table.insert(out, b64c:sub(c2 + 1, c2 + 1))
+        if i + 1 <= len then
+            table.insert(out, b64c:sub(c3 + 1, c3 + 1))
+        else
+            table.insert(out, "=")
+        end
+        if i + 2 <= len then
+            table.insert(out, b64c:sub(c4 + 1, c4 + 1))
+        else
+            table.insert(out, "=")
+        end
+        i = i + 3
+    end
+    return table.concat(out)
+end
+
+function Utils.Base64Decode(data)
+    if not data or data == "" then return "" end
+    data = data:gsub("[^A-Za-z0-9%+/=]", "")
+    local out = {}
+    local len = #data
+    local i = 1
+    while i <= len do
+        local char1 = data:sub(i, i)
+        local char2 = data:sub(i + 1, i + 1)
+        local char3 = data:sub(i + 2, i + 2)
+        local char4 = data:sub(i + 3, i + 3)
+        
+        local b1 = b64t[char1] or 0
+        local b2 = b64t[char2] or 0
+        local b3 = (char3 ~= "" and char3 ~= "=") and (b64t[char3] or 0) or 0
+        local b4 = (char4 ~= "" and char4 ~= "=") and (b64t[char4] or 0) or 0
+        
+        local o1 = b1 * 4 + math.floor(b2 / 16)
+        table.insert(out, string.char(o1))
+        
+        if char3 ~= "" and char3 ~= "=" then
+            local o2 = (b2 % 16) * 16 + math.floor(b3 / 4)
+            table.insert(out, string.char(o2))
+        end
+        if char4 ~= "" and char4 ~= "=" then
+            local o3 = (b3 % 4) * 64 + b4
+            table.insert(out, string.char(o3))
+        end
+        i = i + 4
+    end
+    return table.concat(out)
+end
+
+function Utils.CalculateHash(str)
+    if not str or str == "" then return "00000000" end
+    local hash = 5381
+    for i = 1, #str do
+        hash = ((hash * 33) + str:byte(i)) % 4294967296
+    end
+    return string.format("%08X", hash)
+end
+

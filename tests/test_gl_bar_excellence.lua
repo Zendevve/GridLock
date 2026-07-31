@@ -128,7 +128,7 @@ _G.CreateFrame = function(frameType, name, parent, template)
             ClearAllPoints = function() end,
             Hide = function() end,
             Show = function() end,
-            SetTexCoord = function() end,
+            SetTexCoord = function(s, a, b, c, d) s.texCoords = { a, b, c, d }; self.texCoords = { a, b, c, d } end,
         }
     end
     f.CreateFontString = function(self)
@@ -175,19 +175,26 @@ print("=========================================")
 -- Test Group 1: Custom State Driver Registration
 print("[Test Group 1] Custom State Driver Registration")
 local barFrame = _G.CreateFrame("Frame", "MainMenuBar")
-GridLock:SetCustomStateDriver(barFrame, "[mod:alt] 2; [bonusbar:1] 7")
-assert_eq(barFrame.customStateDriver, "[mod:alt] 2; [bonusbar:1] 7", "Custom state driver stored on frame")
+GridLock:SetCustomStateDriver("MainMenuBar", "[mod:alt] 2; [bonusbar:1] 7")
+assert_eq(barFrame.customStateDriver, "[mod:alt] 2; [bonusbar:1] 7", "Custom state driver stored on frame by string name")
 assert_eq(driversRegistered[barFrame], "[mod:alt] 2; [bonusbar:1] 7", "Registered driver string with WoW C-engine")
+assert_eq(GridLock:EvaluateStateDriver(barFrame.customStateDriver, { mod = "alt" }), 2, "Evaluated [mod:alt] 2 with space")
+assert_eq(GridLock:EvaluateStateDriver(barFrame.customStateDriver, { bonusbar = 1 }), 7, "Evaluated [bonusbar:1] 7 with space")
 
 -- Test Group 2: Border Color & Masque Grouping
 print("[Test Group 2] Custom Border Tinting & Masque Registration")
 local btn1 = _G.CreateFrame("Button", "MainMenuBarButton1")
 btn1.Border = btn1:CreateTexture()
+btn1.Icon = btn1:CreateTexture()
 
-GridLock:SetBarBorderColor(barFrame, 0.0, 0.8, 1.0, 1.0)
-assert_true(barFrame.borderColor ~= nil, "Bar border color set")
+GridLock:SetBarBorderColor("MainMenuBar", 0.0, 0.8, 1.0, 1.0)
+assert_true(barFrame.borderColor ~= nil, "Bar border color set via string name")
 
-GridLock:RegisterMasqueGroup(barFrame, "MainMenuBar")
+GridLock:SetBarIconZoom("MainMenuBar", true)
+assert_true(barFrame.iconZoomed == true, "Icon zoom set via string name")
+assert_true(btn1.texCoords ~= nil and btn1.texCoords[1] == 0.08, "Button icon texCoords cropped to 0.08")
+
+GridLock:RegisterMasqueGroup("MainMenuBar", "MainMenuBar")
 assert_true(#masqueButtons >= 1, "Registered buttons with Masque group")
 
 -- Test Group 3: Dashboard Action Bar Customizer Card

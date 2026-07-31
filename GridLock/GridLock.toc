@@ -37,6 +37,7 @@ Modules\BlizzardArt.lua
 
 
 # UI
+UI\Theme.lua
 UI\HUD.lua
 UI\Dashboard.lua
 

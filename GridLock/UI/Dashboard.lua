@@ -60,14 +60,18 @@ function Dashboard:CreateFrame()
     f:EnableMouse(true)
     f:SetClampedToScreen(true)
 
-    f:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        tile = false, tileSize = 0, edgeSize = 1,
-        insets = { left = 0, right = 0, top = 0, bottom = 0 }
-    })
-    f:SetBackdropColor(0.03, 0.04, 0.06, 0.95)
-    f:SetBackdropBorderColor(0.0, 0.8, 1.0, 0.8)
+    if GridLock.ApplyDarkGlassStyle then
+        GridLock:ApplyDarkGlassStyle(f, 0.03, 0.04, 0.06, 0.95, 0.0, 0.8, 1.0, 0.8)
+    else
+        f:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Buttons\\WHITE8X8",
+            tile = false, tileSize = 0, edgeSize = 1,
+            insets = { left = 0, right = 0, top = 0, bottom = 0 }
+        })
+        f:SetBackdropColor(0.03, 0.04, 0.06, 0.95)
+        f:SetBackdropBorderColor(0.0, 0.8, 1.0, 0.8)
+    end
 
     -- Header Bar
     local header = CreateFrame("Frame", nil, f)

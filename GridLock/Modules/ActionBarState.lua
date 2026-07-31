@@ -74,7 +74,7 @@ function GridLock:EvaluateStateDriver(driverString, env)
     for clause in string.gmatch(driverString .. ";", "%s*(.-)%s*;") do
         clause = clause:match("^%s*(.-)%s*$")
         if clause and clause ~= "" then
-            local conds, pageStr = clause:match("^%[(.+)%](%d+)$")
+            local conds, pageStr = clause:match("^%[(.+)%]%s*(%d+)$")
             if conds and pageStr then
                 local allMatch = true
                 -- Split conditions inside brackets by comma
@@ -83,10 +83,14 @@ function GridLock:EvaluateStateDriver(driverString, env)
                     if cond and cond ~= "" then
                         local key, val = cond:match("^([%w_]+):?(.*)$")
                         if key == "bonusbar" then
-                            if tonumber(env.bonusbar or 0) ~= tonumber(val) then
-                                allMatch = false
-                                break
+                            local match = false
+                            for v in string.gmatch(val .. "/", "([^/]+)/") do
+                                if tonumber(env.bonusbar or 0) == tonumber(v) then
+                                    match = true
+                                    break
+                                end
                             end
+                            if not match then allMatch = false; break end
                         elseif key == "stealth" then
                             local reqStealth = tonumber(val) or 1
                             local actualStealth = tonumber(env.stealth or 0)
@@ -95,20 +99,32 @@ function GridLock:EvaluateStateDriver(driverString, env)
                                 break
                             end
                         elseif key == "form" then
-                            if tonumber(env.form or 0) ~= tonumber(val) then
-                                allMatch = false
-                                break
+                            local match = false
+                            for v in string.gmatch(val .. "/", "([^/]+)/") do
+                                if tonumber(env.form or 0) == tonumber(v) then
+                                    match = true
+                                    break
+                                end
                             end
+                            if not match then allMatch = false; break end
                         elseif key == "bar" then
-                            if tonumber(env.bar or 1) ~= tonumber(val) then
-                                allMatch = false
-                                break
+                            local match = false
+                            for v in string.gmatch(val .. "/", "([^/]+)/") do
+                                if tonumber(env.bar or 1) == tonumber(v) then
+                                    match = true
+                                    break
+                                end
                             end
+                            if not match then allMatch = false; break end
                         elseif key == "mod" then
-                            if (env.mod or "") ~= val then
-                                allMatch = false
-                                break
+                            local match = false
+                            for v in string.gmatch(val .. "/", "([^/]+)/") do
+                                if (env.mod or "") == v then
+                                    match = true
+                                    break
+                                end
                             end
+                            if not match then allMatch = false; break end
                         elseif key == "vehicleui" then
                             if not env.vehicleui then
                                 allMatch = false

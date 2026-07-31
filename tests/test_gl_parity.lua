@@ -106,9 +106,9 @@ _G.CreateFrame = function(frameType, name, parent, template)
         table.insert(self.points, { p, rel, rp, x, y })
     end
     f.ClearAllPoints = function(self) self.points = {} end
-    f.SetBackdrop = function(self, bd) end
-    f.SetBackdropColor = function(self, r, g, b, a) end
-    f.SetBackdropBorderColor = function(self, r, g, b, a) end
+    f.SetBackdrop = function(self, bd) self.backdrop = bd end
+    f.SetBackdropColor = function(self, r, g, b, a) self.bgColor = { r, g, b, a } end
+    f.SetBackdropBorderColor = function(self, r, g, b, a) self.borderColor = { r, g, b, a } end
     f.CreateTexture = function(self)
         return {
             SetTexture = function() end,
@@ -123,14 +123,17 @@ _G.CreateFrame = function(frameType, name, parent, template)
         }
     end
     f.CreateFontString = function(self)
-        return {
-            SetPoint = function() end,
-            SetTextColor = function() end,
-            SetText = function(s, txt) self.text = txt end,
-            GetText = function(s) return self.text end,
-            Hide = function() end,
-            Show = function() end,
-        }
+        local fs = {}
+        fs.SetPoint = function() end
+        fs.SetTextColor = function(s, r, g, b, a) fs.textColor = { r, g, b, a } end
+        fs.SetText = function(s, txt) fs.text = txt end
+        fs.GetText = function(s) return fs.text end
+        fs.SetFont = function(s, font, size, flags) fs.font = font; fs.fontSize = size; fs.flags = flags end
+        fs.GetFont = function(s) return fs.font or "Fonts\\FRIZQT__.TTF", fs.fontSize or 12, fs.flags or "" end
+        fs.SetShadowOffset = function(s, x, y) fs.shadowOffset = { x, y } end
+        fs.Hide = function() fs.visible = false end
+        fs.Show = function() fs.visible = true end
+        return fs
     end
     f.SetScript = function(self, script, fn) self.scripts[script] = fn end
     f.GetScript = function(self, script) return self.scripts[script] end
@@ -156,6 +159,8 @@ dofile("GridLock/Modules/Mover.lua")
 dofile("GridLock/Modules/BarLayout.lua")
 dofile("GridLock/Modules/Keybind.lua")
 dofile("GridLock/Modules/Profile.lua")
+dofile("GridLock/Modules/Grid.lua")
+dofile("GridLock/UI/Theme.lua")
 
 print("=========================================")
 print("Running GridLock Parity & Feature Tests")
@@ -216,6 +221,78 @@ _G.GetActiveTalentGroup = function() return 1 end
 Profile:OnSpecChanged()
 assert_eq(Profile.currentProfile, "Primary Spec", "Auto-switched to Primary Spec profile on spec 1")
 
+-- Test Group 5: Modern Dark-Glass Border Engine
+print("[Test Group 5] Modern Dark-Glass Border Engine")
+local Theme = GridLock:GetModule("Theme") or GridLock.Theme
+assert_true(Theme ~= nil, "Theme module loaded")
+local glassFrame = _G.CreateFrame("Frame", "TestGlassPanel")
+assert_true(GridLock:ApplyDarkGlassStyle(glassFrame), "ApplyDarkGlassStyle executed")
+assert_true(glassFrame.bgColor ~= nil, "Backdrop background color applied")
+assert_true(glassFrame.borderColor ~= nil, "Backdrop border color applied")
+
+-- Test Group 6: Unified Profile Sharing (Base64 & Hash Validation)
+print("[Test Group 6] Unified Profile Sharing & String Validation")
+GridLock.db = { frames = { PlayerFrame = { point = "CENTER", relativeTo = "UIParent", relativePoint = "CENTER", x = 100, y = -50, scale = 1.1, alpha = 0.9 } } }
+local exportedStr = GridLock:ExportConfig()
+assert_true(exportedStr:find("^!GL1:") ~= nil, "Export string starts with !GL1: tag")
+
+local okVal, decodedData = GridLock:ValidateImportString(exportedStr)
+assert_true(okVal == true, "Exported string passes checksum hash validation")
+assert_true(decodedData:find("PlayerFrame") ~= nil, "Decoded string contains PlayerFrame data")
+
+-- Verify Profile export/import
+local profExport = Profile:ExportConfig("Primary Spec")
+assert_true(profExport:find("^!GL1:") ~= nil, "Profile export string format verified")
+
+local importOk = Profile:ImportConfig(profExport, "Imported Spec")
+assert_true(importOk == true, "Profile import executed successfully")
+assert_true(GridLockDB.profiles["Imported Spec"] ~= nil, "Imported Spec profile created in DB")
+
+-- Corrupted hash validation test
+local tamperedStr = exportedStr:sub(1, #exportedStr - 2) .. "XX"
+local okTampered, _, errTampered = GridLock:ValidateImportString(tamperedStr)
+assert_true(okTampered == false, "Tampered string fails checksum validation")
+
+-- Test Group 7: Pixel Alignment Grid
+print("[Test Group 7] Pixel Alignment Grid Controls")
+local GridModule = GridLock:GetModule("Grid")
+assert_true(GridModule ~= nil, "Grid module loaded")
+
+GridModule:SetSize(32)
+local nextSize1 = GridLock:CycleGridSize()
+assert_eq(nextSize1, 64, "Grid cycle size 32 -> 64")
+local nextSize2 = GridLock:CycleGridSize()
+assert_eq(nextSize2, 8, "Grid cycle size 64 -> 8")
+local nextSize3 = GridLock:CycleGridSize()
+assert_eq(nextSize3, 16, "Grid cycle size 8 -> 16")
+local nextSize4 = GridLock:CycleGridSize()
+assert_eq(nextSize4, 32, "Grid cycle size 16 -> 32")
+
+-- Test Group 8: Font String Customizer Engine
+print("[Test Group 8] Font String Customizer Engine Across Action Buttons")
+local fontTestBar = _G.CreateFrame("Frame", "TestFontBar")
+local fontBtn = _G.CreateFrame("Button", "TestFontBarButton1")
+fontTestBar.buttons = { fontBtn }
+
+fontBtn.HotKey = fontBtn:CreateFontString()
+fontBtn.Count = fontBtn:CreateFontString()
+fontBtn.Name = fontBtn:CreateFontString()
+
+local fontCfg = {
+    font = "Fonts\\ARIALN.TTF",
+    size = 14,
+    outline = "OUTLINE",
+    color = { r = 1, g = 0.5, b = 0, a = 1 },
+    shadow = { x = 1, y = -1 },
+}
+
+GridLock:SetBarFontStringStyle(fontTestBar, "hotkey", fontCfg)
+assert_eq(fontBtn.HotKey.font, "Fonts\\ARIALN.TTF", "Hotkey font family set")
+assert_eq(fontBtn.HotKey.fontSize, 14, "Hotkey font size set")
+assert_eq(fontBtn.HotKey.flags, "OUTLINE", "Hotkey font flags set")
+assert_eq(fontBtn.HotKey.textColor[1], 1, "Hotkey font text color red channel set")
+
 print("=========================================")
-print(string.format("All Parity Tests PASSED! (Passed: %d, Failed: 0)", passCount))
+print(string.format("All Parity & Feature Tests PASSED! (Passed: %d, Failed: 0)", passCount))
 print("=========================================")
+

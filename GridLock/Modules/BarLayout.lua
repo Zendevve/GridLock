@@ -15,12 +15,19 @@ BarLayout.pendingQueue = GridLock.pendingQueue
 -- Helper: Get list of buttons for a bar frame
 function BarLayout:GetBarButtons(barFrame)
     if not barFrame then return {} end
-    if barFrame.buttons and type(barFrame.buttons) == "table" then
+    local strName = nil
+    if type(barFrame) == "string" then
+        strName = barFrame
+        barFrame = _G[barFrame]
+    end
+    if not barFrame and not strName then return {} end
+
+    if barFrame and type(barFrame) == "table" and barFrame.buttons and type(barFrame.buttons) == "table" then
         return barFrame.buttons
     end
     
     local buttons = {}
-    local name = barFrame.GetName and barFrame:GetName()
+    local name = (barFrame and type(barFrame) == "table" and barFrame.GetName and barFrame:GetName()) or strName
     if name then
         for i = 1, 12 do
             local btn = _G[name .. "Button" .. i] or _G[name .. "ActionButton" .. i] or _G[name .. "Btn" .. i]
@@ -30,7 +37,7 @@ function BarLayout:GetBarButtons(barFrame)
         end
     end
     
-    if #buttons == 0 and barFrame.GetChildren then
+    if #buttons == 0 and barFrame and type(barFrame) == "table" and barFrame.GetChildren then
         local children = { barFrame:GetChildren() }
         for _, child in ipairs(children) do
             if type(child) == "table" then
@@ -289,12 +296,17 @@ end
 -- 7. Set Bar Icon Zoom (Crop button border textures for clean borderless aesthetic)
 function GridLock:SetBarIconZoom(barFrame, zoomEnabled)
     if not barFrame then return end
+    local frame = (type(barFrame) == "string" and _G[barFrame]) or barFrame
     local zoom = not not zoomEnabled
-    barFrame.iconZoomed = zoom
+    if type(barFrame) == "table" then
+        barFrame.iconZoomed = zoom
+    elseif frame then
+        frame.iconZoomed = zoom
+    end
 
     local buttons = BarLayout:GetBarButtons(barFrame)
     for _, btn in ipairs(buttons) do
-        local btnName = btn.GetName and btn:GetName()
+        local btnName = (btn.GetName and btn:GetName())
         local icon = (btnName and _G[btnName .. "Icon"]) or btn.icon or btn.Icon
         if icon and icon.SetTexCoord then
             if zoom then
@@ -309,11 +321,16 @@ end
 -- 8. Set Bar Click-Through (Disable mouse interaction per bar)
 function GridLock:SetBarClickThrough(barFrame, clickThroughEnabled)
     if not barFrame then return end
+    local frame = (type(barFrame) == "string" and _G[barFrame]) or barFrame
     local clickThrough = not not clickThroughEnabled
-    barFrame.clickThrough = clickThrough
+    if type(barFrame) == "table" then
+        barFrame.clickThrough = clickThrough
+    elseif frame then
+        frame.clickThrough = clickThrough
+    end
 
-    if barFrame.EnableMouse then
-        barFrame:EnableMouse(not clickThrough)
+    if frame and frame.EnableMouse then
+        frame:EnableMouse(not clickThrough)
     end
 
     local buttons = BarLayout:GetBarButtons(barFrame)
@@ -327,17 +344,23 @@ end
 -- 9. Set Bar Normal Texture Visibility
 function GridLock:SetBarNormalTextureVisibility(barFrame, visible)
     if not barFrame then return end
+    local frame = (type(barFrame) == "string" and _G[barFrame]) or barFrame
     local showNorm = not not visible
-    barFrame.showNormalTexture = showNorm
+    if type(barFrame) == "table" then
+        barFrame.showNormalTexture = showNorm
+    elseif frame then
+        frame.showNormalTexture = showNorm
+    end
 
     local buttons = BarLayout:GetBarButtons(barFrame)
     for _, btn in ipairs(buttons) do
-        local norm = btn.GetNormalTexture and btn:GetNormalTexture()
+        local btnName = (btn.GetName and btn:GetName())
+        local norm = (btn.GetNormalTexture and btn:GetNormalTexture()) or (btnName and _G[btnName .. "NormalTexture"]) or btn.NormalTexture or btn.normalTexture
         if norm then
             if showNorm then
-                norm:Show()
+                if norm.Show then norm:Show() end
             else
-                norm:Hide()
+                if norm.Hide then norm:Hide() end
             end
         end
     end
@@ -346,8 +369,13 @@ end
 -- 10. Set Bar Custom Border Color
 function GridLock:SetBarBorderColor(barFrame, r, g, b, a)
     if not barFrame then return end
+    local frame = (type(barFrame) == "string" and _G[barFrame]) or barFrame
     r, g, b, a = r or 1, g or 1, b or 1, a or 1
-    barFrame.borderColor = { r = r, g = g, b = b, a = a }
+    if type(barFrame) == "table" then
+        barFrame.borderColor = { r = r, g = g, b = b, a = a }
+    elseif frame then
+        frame.borderColor = { r = r, g = g, b = b, a = a }
+    end
 
     local buttons = BarLayout:GetBarButtons(barFrame)
     for _, btn in ipairs(buttons) do
@@ -374,4 +402,90 @@ function GridLock:RegisterMasqueGroup(barFrame, groupName)
     end
 end
 
+-- 12. Font String Customizer Engine
+function GridLock:SetFontStringStyle(fontString, config)
+    if not fontString or type(config) ~= "table" then return false end
+
+    local currentFont, currentSize, currentFlags
+    if fontString.GetFont then
+        currentFont, currentSize, currentFlags = fontString:GetFont()
+    end
+
+    local font = config.font or config.fontFamily or currentFont or "Fonts\\FRIZQT__.TTF"
+    local size = config.size or config.fontSize or currentSize or 12
+    local flags = config.flags or config.outline or currentFlags or ""
+
+    if fontString.SetFont then
+        fontString:SetFont(font, size, flags)
+    end
+
+    if config.color or config.textColor then
+        local color = config.color or config.textColor
+        local r = color.r or color[1] or 1
+        local g = color.g or color[2] or 1
+        local b = color.b or color[3] or 1
+        local a = color.a or color[4] or 1
+        if fontString.SetTextColor then
+            fontString:SetTextColor(r, g, b, a)
+        end
+    end
+
+    if config.shadow or config.shadowOffset then
+        local shadow = config.shadow or config.shadowOffset
+        local sx = shadow.x or shadow[1] or 1
+        local sy = shadow.y or shadow[2] or -1
+        if fontString.SetShadowOffset then
+            fontString:SetShadowOffset(sx, sy)
+        end
+        if config.shadowColor and fontString.SetShadowColor then
+            local sc = config.shadowColor
+            fontString:SetShadowColor(sc.r or sc[1] or 0, sc.g or sc[2] or 0, sc.b or sc[3] or 0, sc.a or sc[4] or 1)
+        end
+    end
+
+    return true
+end
+
+function GridLock:SetBarFontStringStyle(barFrame, targetType, config)
+    if not barFrame then return false end
+    if _G.InCombatLockdown and _G.InCombatLockdown() then
+        GridLock:QueueCombatAction(function()
+            GridLock:SetBarFontStringStyle(barFrame, targetType, config)
+        end)
+        return true
+    end
+
+    targetType = (targetType or "all"):lower()
+    local buttons = BarLayout:GetBarButtons(barFrame)
+    for _, btn in ipairs(buttons) do
+        local btnName = btn.GetName and btn:GetName()
+        
+        -- Hotkey Text
+        if targetType == "hotkey" or targetType == "all" then
+            local hotkey = (btnName and _G[btnName .. "HotKey"]) or btn.HotKey or btn.hotKey
+            if hotkey then
+                GridLock:SetFontStringStyle(hotkey, config)
+            end
+        end
+
+        -- Count Text
+        if targetType == "count" or targetType == "all" then
+            local count = (btnName and _G[btnName .. "Count"]) or btn.Count or btn.count
+            if count then
+                GridLock:SetFontStringStyle(count, config)
+            end
+        end
+
+        -- Macro Text / Name
+        if targetType == "macro" or targetType == "name" or targetType == "all" then
+            local macro = (btnName and _G[btnName .. "Name"]) or btn.Name or btn.macroName
+            if macro then
+                GridLock:SetFontStringStyle(macro, config)
+            end
+        end
+    end
+    return true
+end
+
 return BarLayout
+
